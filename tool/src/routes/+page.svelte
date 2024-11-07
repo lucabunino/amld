@@ -1,7 +1,6 @@
 <script>
 import P5 from 'p5-svelte';
 import { onMount } from 'svelte';
-    import { on } from 'svelte/events';
 import { Pane } from 'tweakpane';
 
 let innerWidth = $state();
