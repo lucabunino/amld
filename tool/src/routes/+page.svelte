@@ -16,9 +16,8 @@ let startTime = $state(false);
 let startStopButton = null;
 let restartButton = null;
 let renderButton = $state();
-let pane = $state()
 
-const framerate = 60;
+const framerate = 10;
 
 // PARAMS
 let maxColumns = 10
@@ -38,7 +37,7 @@ for (let i = 0; i < maxColumns; i++) {
     speed: Math.floor(Math.random() * 9) + 1,
     width: Math.floor(Math.random() * 99) + 1,
     positionX: Math.floor(Math.random() * 99),
-    thickness: Math.floor(Math.random() * 5) + 1,
+    thickness: Math.floor(Math.random() * 4) + 1,
     animationType: ['verticalBouncing', 'verticalContinuous', 'backAndForth'][Math.floor(Math.random() * 3)],
     direction: ['upwards', 'downwards'][Math.floor(Math.random() * 2)],  // Randomly set initial direction
   });
@@ -51,6 +50,7 @@ function randomizeColumnParams() {
     PARAMS.cols[col].speed = Math.floor(Math.random() * 9) + 1,
     PARAMS.cols[col].width = Math.floor(Math.random() * 99),
     PARAMS.cols[col].positionX = Math.floor(Math.random() * 99) + 1,
+    PARAMS.cols[col].thickness = Math.floor(Math.random() * 4) + 1,
     PARAMS.cols[col].animationType = ['verticalBouncing', 'verticalContinuous', 'backAndForth'][Math.floor(Math.random() * 3)];
     PARAMS.cols[col].direction = ['upwards', 'downwards'][Math.floor(Math.random() * 2)];
   }
@@ -176,6 +176,18 @@ onMount(() => {
   tab.pages[0].addBinding(PARAMS, 'columns', { min: 1, max: maxColumns, step: 1 });
   tab.pages[0].addBinding(PARAMS, 'width', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
   tab.pages[0].addBinding(PARAMS, 'height', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
+  tab.pages[0].addButton({
+    title: 'Export state',
+  }).on('click', () => {
+    exportState(pane.exportState())
+  });
+  tab.pages[0].addButton({
+    title: 'Import state',
+  }).on('click', () => {
+    importState(pane, (pane, importedState) => {
+      pane.importState(importedState);
+    });
+  });
 
   PARAMS.cols.forEach((col, i) => {
     const columnFolder = tab.pages[1].addFolder({ title: `Column ${i + 1}`, expanded: false });
@@ -297,6 +309,39 @@ function exportCurrentFrame() {
   }
 }
 
+// Export/import Pane
+function exportState(state) {
+  const stateJSON = JSON.stringify(state, null, 2);
+  const blob = new Blob([stateJSON], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  const datetime = new Date().toISOString().replace(/[-T:.]/g, '_');
+  link.download = `amld-state-${datetime}.json`;
+  link.click();
+}
+function importState(pane, callback) {
+  const importInput = document.createElement('input');
+  importInput.type = 'file';
+  importInput.accept = '.json';
+  importInput.style.display = 'none';
+
+  importInput.onchange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const importedState = JSON.parse(reader.result);
+          callback(pane, importedState); // Pass pane along with imported state
+        } catch (error) {
+          alert('Failed to import state: Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+  importInput.click();
+}
 
 // Canvas resize
 function handleCanvasResize() {
