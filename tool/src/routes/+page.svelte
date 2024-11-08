@@ -113,14 +113,15 @@ function animate(p5) {
     }
 
     if (animType === 'verticalBouncing') {
-      const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed); // This gives a complete oscillation in 'duration' seconds
-      const deltaY = Math.abs(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI)) * spacing; 
+    const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed); // Complete oscillation in 'duration' seconds
+    const deltaY = Math.pow(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI), 2) * spacing; 
 
-      for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-          const newY = (i * spacing + deltaY) % p5.height;
-          p5.line(col * columnWidth, newY, (col + 1) * columnWidth, newY);
-      }
+    for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
+        const newY = (i * spacing + deltaY) % p5.height;
+        p5.line(col * columnWidth, newY, (col + 1) * columnWidth, newY);
     }
+}
+
 
     // if (animType === 'verticalContinuous') {
     //   const speed = spacing / duration * PARAMS.cols[col].speed / 1000;
@@ -205,7 +206,6 @@ onMount(() => {
   });
   const renderButton = exportFolder.addButton({
     title: 'Render',
-    style: { color: isRendering ? '#fff' : '#000' }
   }).on('click', () => {
     if (isRendering) {
       stopCapture();
@@ -221,11 +221,11 @@ onMount(() => {
 
   startStopButton = exportFolder.addButton({
     title: 'Pause'
-  }).on('click', toggleAnimation);
+  }).on('click', () => toggleAnimation());
 
   restartButton = exportFolder.addButton({
     title: 'Restart'
-  }).on('click', restartAnimation);
+  }).on('click', () => restartAnimation());
 });
 
 function updateCaptureQuality() {
