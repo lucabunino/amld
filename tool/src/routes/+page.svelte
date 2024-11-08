@@ -176,18 +176,6 @@ onMount(() => {
   tab.pages[0].addBinding(PARAMS, 'columns', { min: 1, max: maxColumns, step: 1 });
   tab.pages[0].addBinding(PARAMS, 'width', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
   tab.pages[0].addBinding(PARAMS, 'height', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
-  tab.pages[0].addButton({
-    title: 'Export state',
-  }).on('click', () => {
-    exportState(pane.exportState())
-  });
-  tab.pages[0].addButton({
-    title: 'Import state',
-  }).on('click', () => {
-    importState(pane, (pane, importedState) => {
-      pane.importState(importedState);
-    });
-  });
 
   PARAMS.cols.forEach((col, i) => {
     const columnFolder = tab.pages[1].addFolder({ title: `Column ${i + 1}`, expanded: false });
@@ -248,6 +236,18 @@ onMount(() => {
     }
   });
   exportFolder.addButton({ title: 'Export Current Frame' }).on('click', exportCurrentFrame);
+  exportFolder.addButton({
+    title: 'Export state',
+  }).on('click', () => {
+    exportState(pane.exportState())
+  });
+  exportFolder.addButton({
+    title: 'Import state',
+  }).on('click', () => {
+    importState(pane, (pane, importedState) => {
+      pane.importState(importedState);
+    });
+  });
 });
 
 // Player and export
@@ -380,6 +380,9 @@ function fitCanvasToViewport() {
     left: 0;
     top: 0;
     transform-origin: left top;
+  }
+  :global(:root) {
+    --tp-blade-value-width: 240px;
   }
   #settings {
     position: fixed;
