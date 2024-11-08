@@ -13,13 +13,18 @@ let animationRunning = $state(true);
 let p5Instance = $state(null);
 let isRendering = $state(false);
 let startTime = $state(false);
+let startStopButton = null;
+let restartButton = null;
+let renderButton = $state();
+let pane = $state()
 
+const framerate = 60;
 
+// PARAMS
 let maxColumns = 10
 let PARAMS = {
   duration: 20,
   columns: 10,
-  quality: 100,
   width: 600,
   height: 400,
   format: 'webm',
@@ -30,22 +35,26 @@ let PARAMS = {
 for (let i = 0; i < maxColumns; i++) {
   PARAMS.cols.push({
     lineCount: Math.floor(Math.random() * 100) + 1,
-    speed: Math.random() * 5 + 0.5,
+    speed: Math.floor(Math.random() * 9) + 1,
+    width: Math.floor(Math.random() * 99) + 1,
+    positionX: Math.floor(Math.random() * 99),
     thickness: Math.floor(Math.random() * 5) + 1,
     animationType: ['verticalBouncing', 'verticalContinuous', 'backAndForth'][Math.floor(Math.random() * 3)],
     direction: ['upwards', 'downwards'][Math.floor(Math.random() * 2)],  // Randomly set initial direction
   });
 }
-
 let currentLine = $state(new Array(PARAMS.columns).fill(0));
 let direction = $state(new Array(PARAMS.columns).fill(1));
-let increment = $state(new Array(PARAMS.columns).fill(0));
-
-const framerate = 60;
-
-$effect(() => {
-  // $inspect(PARAMS)
-});
+function randomizeColumnParams() {
+  for (let col = 0; col < PARAMS.columns; col++) {
+    PARAMS.cols[col].lineCount = Math.floor(Math.random() * 100) + 1;
+    PARAMS.cols[col].speed = Math.floor(Math.random() * 9) + 1,
+    PARAMS.cols[col].width = Math.floor(Math.random() * 99),
+    PARAMS.cols[col].positionX = Math.floor(Math.random() * 99) + 1,
+    PARAMS.cols[col].animationType = ['verticalBouncing', 'verticalContinuous', 'backAndForth'][Math.floor(Math.random() * 3)];
+    PARAMS.cols[col].direction = ['upwards', 'downwards'][Math.floor(Math.random() * 2)];
+  }
+}
 
 let sketch = $state((p5) => {
   p5Instance = p5;
@@ -62,15 +71,14 @@ let sketch = $state((p5) => {
 
 function animate(p5) {
   p5.background(0);
-  const columnWidth = p5.width / PARAMS.columns;
+  PARAMS.timeline = (p5.millis() - startTime) / 1000
   const duration = PARAMS.duration;
   const maxFrames = framerate * duration;
-  PARAMS.timeline = (p5.millis() - startTime) / 1000
-  PARAMS.cols.forEach((col, i) => {
-    increment[i] = (col.lineCount / (maxFrames / 2)) * col.speed;
-  });
 
   for (let col = 0; col < PARAMS.columns; col++) {
+    const columnWidth = p5.width / 100 * PARAMS.cols[col].width;
+    const columnPositionX = p5.width / 100 * PARAMS.cols[col].positionX;
+    const increment = (PARAMS.cols[col].lineCount / (maxFrames / 2)) * PARAMS.cols[col].speed;
     const animType = PARAMS.cols[col].animationType;
     const spacing = p5.height / PARAMS.cols[col].lineCount;
 
@@ -78,133 +86,147 @@ function animate(p5) {
     p5.strokeWeight(PARAMS.cols[col].thickness).strokeCap(p5.SQUARE);
 
     if (animType === 'backAndForth') {
-  // Set initial direction based on 'upwards' or 'downwards' parameter
-  let initialDirection = PARAMS.cols[col].direction === 'upwards' ? -1 : 1;
-  if (!direction[col]) direction[col] = initialDirection;
+      // Set initial direction based on 'upwards' or 'downwards' parameter
+      let initialDirection = PARAMS.cols[col].direction === 'upwards' ? -1 : 1;
+      if (!direction[col]) direction[col] = initialDirection;
 
-  // Update current line position with current direction
-  currentLine[col] += increment[col] * direction[col];
+      // Update current line position with current direction
+      currentLine[col] += increment * direction[col];
 
-  // Check for boundary and reverse direction if needed
-  if (currentLine[col] >= PARAMS.cols[col].lineCount - 1 || currentLine[col] <= 0) {
-    direction[col] *= -1; // Reverse direction
-  }
+      // Check for boundary and reverse direction if needed
+      if (currentLine[col] >= PARAMS.cols[col].lineCount - 1 || currentLine[col] <= 0) {
+        direction[col] *= -1; // Reverse direction
+      }
 
-  // Draw the lines up to the current line position
-  for (let i = 0; i <= Math.floor(currentLine[col]); i++) {
-    // Calculate yPos based on initial direction
-    let yPos = initialDirection === 1 
-      ? spacing * i  // Lines appear from top to bottom
-      : p5.height - spacing * i;  // Lines appear from bottom to top
-    p5.line(col * columnWidth, yPos, (col + 1) * columnWidth, yPos);
-  }
-}
+      // Draw the lines up to the current line position
+      for (let i = 0; i <= Math.floor(currentLine[col]); i++) {
+        // Calculate yPos based on initial direction
+        let yPos = initialDirection === 1 
+          ? spacing * i  // Lines appear from top to bottom
+          : p5.height - spacing * i;  // Lines appear from bottom to top
+        p5.line(columnPositionX, yPos, columnPositionX + columnWidth, yPos);
+      }
+    }
 
 
     if (animType === 'verticalContinuous') {
-      let speed = spacing / duration * PARAMS.cols[col].speed / 1000;
+      let speed = spacing / duration / 1000 * PARAMS.cols[col].speed;
+      // console.log(duration * PARAMS.cols[col].speed);
+      
       let deltaY = ((p5.millis() - startTime) * speed) * (PARAMS.cols[col].direction === 'upwards' ? -1 : 1);
 
       for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
         let newY = (i * spacing + deltaY) % p5.height;
         if (newY < 0) newY += p5.height;
-        p5.line(col * columnWidth, newY, (col + 1) * columnWidth, newY);
+        p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
       }
     }
 
     if (animType === 'verticalBouncing') {
-    const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed); // Complete oscillation in 'duration' seconds
-    const deltaY = Math.pow(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI), 2) * spacing; 
+        const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed); // Complete oscillation in 'duration' seconds        
+        const deltaY = Math.pow(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI), 2) * spacing; 
 
-    for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-        const newY = (i * spacing + deltaY) % p5.height;
-        p5.line(col * columnWidth, newY, (col + 1) * columnWidth, newY);
+        for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
+            const newY = (i * spacing + deltaY) % p5.height;
+            p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
+        }
     }
-}
-
-
-    // if (animType === 'verticalContinuous') {
-    //   const speed = spacing / duration * PARAMS.cols[col].speed / 1000;
-    //   const deltaY = ((p5.millis() - startTime) * speed);
-
-    //   for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-    //     const newY = (i * spacing + deltaY) % p5.height;
-    //     p5.line(col * columnWidth, newY, (col + 1) * columnWidth, newY);
-    //   }
-    // }
   }
-
+  
+  // Capture and frame counting logic
   if (capturing) {
     capturer.capture(p5.canvas);
     frameCounter++;
+    if (frameCounter >= maxFrames) {
+      isRendering = false
+      capturing = false
+    }
   }
-
   if (animationRunning) animationId = requestAnimationFrame(() => animate(p5));
 }
 
-let startStopButton = null;
-let restartButton = null;
-let pane = $state()
+$effect(() => {
+  if (renderButton && isRendering) {
+    renderButton.title = 'Stop Rendering';
+  }
+  if (renderButton && !isRendering) {
+    renderButton.title = 'Render';
+  }
+})
 
 onMount(() => {
-  randomizeColumnParams();
-  pane = new Pane();
+  const pane = new Pane({
+    container: document.getElementById('settings'),
+  });
 
-  const tab = pane.addTab({
+  // Main "Settings" folder
+  const settingsFolder = pane.addFolder({
+    title: 'Settings',
+  });
+
+  // General settings under "Settings"
+  const tab = settingsFolder.addTab({
     pages: [
-      { title: 'Settings' },
+      { title: 'General' },
       { title: 'Columns' },
     ],
   });
 
   tab.pages[0].addBinding(PARAMS, 'duration', { min: 1, max: 120, step: 1 });
   tab.pages[0].addBinding(PARAMS, 'columns', { min: 1, max: maxColumns, step: 1 });
-  tab.pages[0].addBinding(PARAMS, 'timeline', {
-    readonly: true,  // Make it readonly as it's for display only
-  });
   tab.pages[0].addBinding(PARAMS, 'width', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
   tab.pages[0].addBinding(PARAMS, 'height', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
 
   PARAMS.cols.forEach((col, i) => {
-      const columnFolder = tab.pages[1].addFolder({ title: `Column ${i + 1}`, expanded: false,});
-      columnFolder.addBinding(col, 'lineCount', { min: 1, max: 300, step: 1 });
-      columnFolder.addBinding(col, 'speed', { min: 0.1, max: 5, step: 0.1 });
-      columnFolder.addBinding(col, 'thickness', { min: 1, max: 5, step: 1 });
-      columnFolder.addBinding(col, 'animationType', {
-          options: {
-              'Back and Forth': 'backAndForth',
-              'Vertical Bouncing': 'verticalBouncing',
-              'Vertical Continuous': 'verticalContinuous',
-          }
-      }).on('change', restartAnimation);
-      columnFolder.addBinding(col, 'direction', {
-        options: {
-          'Upwards': 'upwards',
-          'Downwards': 'downwards',
-        }
-      });
+    const columnFolder = tab.pages[1].addFolder({ title: `Column ${i + 1}`, expanded: false });
+    columnFolder.addBinding(col, 'lineCount', { min: 1, max: 300, step: 1 });
+    columnFolder.addBinding(col, 'width', { min: 1, max: 100, step: 1 });
+    columnFolder.addBinding(col, 'positionX', { min: 0, max: 99, step: 1 });
+    columnFolder.addBinding(col, 'speed', { min: 1, max: 10, step: 1 });
+    columnFolder.addBinding(col, 'thickness', { min: 1, max: 5, step: 1 });
+    columnFolder.addBinding(col, 'animationType', {
+      options: {
+        'Back and Forth': 'backAndForth',
+        'Vertical Bouncing': 'verticalBouncing',
+        'Vertical Continuous': 'verticalContinuous',
+      }
+    }).on('change', restartAnimation);
+    columnFolder.addBinding(col, 'direction', {
+      options: {
+        'Upwards': 'upwards',
+        'Downwards': 'downwards',
+      }
+    });
   });
 
-  const exportFolder = pane.addFolder({ title: 'Export Controls', view: 'separator' });
-  exportFolder.addBinding(PARAMS, 'format', {
-    options: {
-      'GIF': 'gif',
-      'WebM': 'webm',
-      'PNG': 'png',
-      'JPG': 'jpg',
-      'WebM (MediaRecorder)': 'webm-mediarecorder',
-    }
+  const playerFolder = settingsFolder.addFolder({ title: 'Player'});
+  playerFolder.addBinding(PARAMS, 'timeline', {
+    readonly: true,
   });
-  exportFolder.addBinding(PARAMS, 'quality', { min: 1, max: 100, step: 1 }).on('change', updateCaptureQuality);
-  exportFolder.addButton({
+  playerFolder.addButton({
     title: 'Randomize',
   }).on('click', () => {
     restartAnimation();
     randomizeColumnParams();
-    console.log(PARAMS.cols);
     pane.refresh();
   });
-  const renderButton = exportFolder.addButton({
+  startStopButton = playerFolder.addButton({
+    title: 'Pause'
+  }).on('click', () => toggleAnimation());
+  restartButton = playerFolder.addButton({
+    title: 'Restart'
+  }).on('click', () => restartAnimation());
+
+  const exportFolder = settingsFolder.addFolder({ title: 'Export'});
+  exportFolder.addBinding(PARAMS, 'format', {
+    options: {
+      'WebM (Quality)': 'webm',
+      'WebM (Fast)': 'webm-mediarecorder',
+      'PNG': 'png',
+      'JPG': 'jpg',
+    }
+  });
+  renderButton = exportFolder.addButton({
     title: 'Render',
   }).on('click', () => {
     if (isRendering) {
@@ -212,45 +234,46 @@ onMount(() => {
     } else {
       startCapture();
     }
-    isRendering = !isRendering;
-    renderButton.title = isRendering ? 'Stop Rendering' : 'Render';
-    renderButton.color = isRendering ? '#fff' : '#000';
   });
-
   exportFolder.addButton({ title: 'Export Current Frame' }).on('click', exportCurrentFrame);
-
-  startStopButton = exportFolder.addButton({
-    title: 'Pause'
-  }).on('click', () => toggleAnimation());
-
-  restartButton = exportFolder.addButton({
-    title: 'Restart'
-  }).on('click', () => restartAnimation());
 });
 
-function updateCaptureQuality() {
-  if (capturing) {
-    capturer.setQuality(PARAMS.quality);
+// Player and export
+function toggleAnimation() {
+  animationRunning = !animationRunning;
+  if (startStopButton) {
+    startStopButton.title = animationRunning ? 'Pause' : 'Play';
+  }
+  if (animationRunning) {
+    requestAnimationFrame(() => animate(p5Instance));
+  } else {
+    cancelAnimationFrame(animationId);
   }
 }
-
+function restartAnimation() {
+  currentLine = new Array(PARAMS.columns).fill(0);
+  direction = new Array(PARAMS.columns).fill(1);
+  frameCounter = 0;
+  PARAMS.timeline = 0;
+  startTime = p5Instance.millis();
+}
 function startCapture() {
-  restartAnimation();
+  isRendering = true;
   if (!capturing) {
     capturer = new CCapture({
       format: PARAMS.format,
       framerate: framerate,
-      quality: PARAMS.quality,
+      quality: 100,
       verbose: true,
       timeLimit: PARAMS.duration,
     });
     capturing = true;
-    frameCounter = 0;
+    restartAnimation();
     capturer.start();
   }
 }
-
 function stopCapture() {
+  isRendering = false;
   if (capturing) {
     capturing = false;
     capturer.stop();
@@ -259,7 +282,6 @@ function stopCapture() {
     cancelAnimationFrame(animationId);
   }
 }
-
 function exportCurrentFrame() {
   if (p5Instance) {
     const currentCanvas = p5Instance.canvas;
@@ -275,33 +297,12 @@ function exportCurrentFrame() {
   }
 }
 
-function toggleAnimation() {
-  animationRunning = !animationRunning;
-  if (startStopButton) {
-    startStopButton.title = animationRunning ? 'Pause' : 'Play';
-  }
-  if (animationRunning) {
-    requestAnimationFrame(() => animate(p5Instance));
-  } else {
-    cancelAnimationFrame(animationId);
-  }
-}
 
-function randomizeColumnParams() {
-  PARAMS.columns = Math.floor(Math.random() * 9) + 1
-  for (let col = 0; col < PARAMS.columns; col++) {
-    PARAMS.cols[col].lineCount = Math.floor(Math.random() * 100) + 1;
-    PARAMS.cols[col].speed = Math.min(Math.random() * 5 + 0.1, 5);
-    PARAMS.cols[col].animationType = ['verticalBouncing', 'verticalContinuous', 'backAndForth'][Math.floor(Math.random() * 3)];
-    PARAMS.cols[col].direction = ['upwards', 'downwards'][Math.floor(Math.random() * 2)];
-  }
-}
-
+// Canvas resize
 function handleCanvasResize() {
   p5Instance.resizeCanvas(PARAMS.width, PARAMS.height);
   fitCanvasToViewport();
 }
-
 function fitCanvasToViewport() {
   const canvasAspect = PARAMS.width / PARAMS.height;
   const viewportAspect = innerWidth / innerHeight;
@@ -316,20 +317,12 @@ function fitCanvasToViewport() {
   canvas.style.left = `${(innerWidth - PARAMS.width * scale) / 2}px`;
   canvas.style.top = `${(innerHeight - PARAMS.height * scale) / 2}px`;
 }
-
-function restartAnimation() {
-  currentLine = new Array(PARAMS.columns).fill(0);
-  direction = new Array(PARAMS.columns).fill(1);
-  increment = new Array(PARAMS.columns).fill(0);
-  frameCounter = 0;
-  PARAMS.timeline = 0;
-  startTime = p5Instance.millis();
-}
 </script>
 
 <svelte:window bind:innerWidth bind:innerHeight onresize={handleCanvasResize}/>
 
 <P5 {sketch} />
+<div id="settings"></div>
 
 <style>
   :global(body) {
@@ -342,5 +335,23 @@ function restartAnimation() {
     left: 0;
     top: 0;
     transform-origin: left top;
+  }
+  #settings {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 99;
+    max-width: 400px;
+    width: calc(100vw - 18px);
+    background-color: black;
+    overflow: scroll;
+    max-height: calc(100vh - 18px);
+    max-height: calc(100svh - 18px);
+    border-radius: 6px;
+  }
+  @media only screen and (max-width: 600px) {
+    #settings {
+      max-width: unset;
+    }
   }
 </style>
