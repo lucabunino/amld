@@ -17,7 +17,7 @@ let startStopButton = null;
 let restartButton = null;
 let renderButton = $state();
 
-const framerate = 10;
+const framerate = 60;
 
 // PARAMS
 let maxColumns = 10
