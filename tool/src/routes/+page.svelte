@@ -486,35 +486,97 @@ function animate(p5) {
     p5.fill(0, 0, 0);
     p5.rectMode(p5.CORNER);
     p5.noStroke();
+    // p5.noStroke();
     p5.rect(0, 0, sideFrameThickness, p5.height); // Left frame
     p5.rect(p5.width - sideFrameThickness, 0, sideFrameThickness, p5.height); // Right frame
     p5.rect(0, 0, p5.width, topFrameThickness); // Top frame
     p5.rect(0, p5.height - bottomFrameThickness, p5.width, bottomFrameThickness); // Bottom frame
 
-    // Assuming svgImage has naturalWidth and naturalHeight properties
     const svgAspectRatio = svgImage.width / svgImage.height; // Aspect ratio of the SVG
     const svgHeight = bottomFrameThickness / 2;
     const svgWidth = svgHeight * svgAspectRatio;
     const svgX = sideFrameThickness;
     const svgY = p5.height - bottomFrameThickness + (bottomFrameThickness - svgHeight) / 2;
-
+    
     // Draw the SVG image
     p5.image(svgImage, svgX, svgY, svgWidth, svgHeight);
 
+    if (PARAMS.textSize === 'm') {
+      p5.textSize(p5.width * 0.021875);
+    } else if (PARAMS.textSize === 'l') {
+      p5.textSize(p5.width * 0.041875);
+    }
+  }
+  if (PARAMS.template === 'horizontalCustom') {
     // Text properties
     const textBaselineY = p5.height - bottomFrameThickness / 4; // Baseline position
     const textX = p5.width - sideFrameThickness; // Padding from the right edge
 
     // Set text styles
     p5.textAlign(p5.RIGHT, p5.BASELINE); // Align right and use alphabetic baseline
-    if (PARAMS.textSize === 'm') {
-      p5.textSize(p5.width*0.021875);
-    } else if (PARAMS.textSize === 'l') {
-      p5.textSize(p5.width*0.041875);
-    }
     p5.fill(255);
     p5.text(PARAMS.text, textX, textBaselineY);
+  } else if (PARAMS.template === 'horizontalStandard') {
+    // Text properties
+    const lineHeight = p5.textSize() * 1; // Line height
+    p5.textLeading(lineHeight); // Set line height for multiline text
+    
+    // Set base Y position for text (bottom of frame)
+    const baseY = p5.height - bottomFrameThickness / 4;
+    
+    // Set text styles
+    p5.textAlign(p5.LEFT, p5.BASELINE);
+    p5.fill(255);
+
+    // Set the text size (you can adjust this based on your preference)
+    if (PARAMS.textSize === 'm') {
+      p5.textSize(p5.width * 0.021875);
+    } else if (PARAMS.textSize === 'l') {
+      p5.textSize(p5.width * 0.041875);
+    }
+
+    const xPositions = [
+      (p5.width - sideFrameThickness * 2) / 4 * 1 + sideFrameThickness,
+      (p5.width - sideFrameThickness * 2) / 4 * 2 + sideFrameThickness,
+      (p5.width - sideFrameThickness * 2) / 4 * 3 + sideFrameThickness,
+    ];
+
+    // Text for the three columns
+    const multilineTexts = [
+      "Shaping the Future\nwith AI",
+      "February 11-14\n2025",
+      "Lausanne\nSwitzerland"
+    ];
+
+    // Loop through each multiline text and render at different X positions
+    multilineTexts.forEach((line, index) => {
+      // Split the text into lines to get the total number of lines
+      const lines = line.split("\n");
+
+      // Render each multiline text at its specific X position
+      p5.text(line, xPositions[index], p5.height - bottomFrameThickness/4 - lines.length*lineHeight + lineHeight);
+    });
   }
+
+  function textHeight(text, maxWidth) {
+    var words = text.split(' ');
+    var line = '';
+    var h = this._textLeading;
+
+    for (var i = 0; i < words.length; i++) {
+        var testLine = line + words[i] + ' ';
+        var testWidth = drawingContext.measureText(testLine).width;
+
+        if (testWidth > maxWidth && i > 0) {
+            line = words[i] + ' ';
+            h += this._textLeading;
+        } else {
+            line = testLine;
+        }
+    }
+    return h;
+ }
+
   
   // Capture and frame counting logic
   if (capturing) {
