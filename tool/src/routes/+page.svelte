@@ -18,11 +18,12 @@ let restartButton = null;
 let renderButton = $state();
 let text = $state();
 let textSize = $state();
-let frame = 'bottom'
 
 const framerate = 60;
 const startingColumns = 4;
 const maxColumns = 10;
+const fontCapsRatio = .72;
+const lineHeightTextL = .85;
 
 const PARAMS = {
   duration: 20,
@@ -234,31 +235,269 @@ function animate(p5) {
   PARAMS.timeline = (p5.millis() - startTime) / 1000;
   const duration = PARAMS.duration;
   const maxFrames = framerate * PARAMS.duration;
+  const svgAspectRatio = svgImage.width / svgImage.height;
 
-  let sideFrameThickness;
-  let topFrameThickness;
-  let bottomFrameThickness;
+  let leftFrame;
+  let rightFrame;
+  let topFrame;
+  let bottomFrame;
 
   if (PARAMS.template === 'fullscreen') {
-    sideFrameThickness = 0;
-    topFrameThickness = 0;
-    bottomFrameThickness = 0;
-  } else if (PARAMS.template === 'horizontalStandard' || PARAMS.template === 'horizontalCustom') {
-    sideFrameThickness = p5.width / 100 * 2.5;
-    topFrameThickness = p5.width / 100 * 2.5;
-    bottomFrameThickness = p5.width / 100 * 10;
+    topFrame = 0;
+    rightFrame = 0;
+    bottomFrame = 0;
+    leftFrame = 0;
+  } else if (PARAMS.template === 'horizontalStandardSmall' || PARAMS.template === 'horizontalStandardBig' || PARAMS.template === 'horizontalCustomShort') {
+    topFrame = p5.width / 100 * 2.5;
+    rightFrame = p5.width / 100 * 2.5;
+    bottomFrame = p5.width / 100 * 10;
+    leftFrame = p5.width / 100 * 2.5;
+  } else if (PARAMS.template === 'horizontalCustomLong') {
+    topFrame = p5.width / 100 * 2.5;
+    rightFrame = p5.width / 100 * 2.5;
+    bottomFrame = p5.width / 100 * 2.5;
+    leftFrame = p5.width / 100 * 50;
+  } else if (PARAMS.template === 'squareCustomLong') {   
+    topFrame = p5.width / 100 * 50;
+    rightFrame = p5.width / 100 * 2.5 * 16/9;
+    bottomFrame = p5.width / 100 * 10 * 16/9;
+    leftFrame = p5.width / 100 * 2.5 * 16/9;
   } else if (PARAMS.template === 'other') {
-    sideFrameThickness = p5.width / 100 * 2.5;
-    topFrameThickness = p5.width / 100 * 2.5;
-    bottomFrameThickness = p5.width / 100 * 2.5;
+    topFrame = p5.width / 100 * 2.5;
+    rightFrame = p5.width / 100 * 2.5;
+    bottomFrame = p5.width / 100 * 2.5;
+    leftFrame = p5.width / 100 * 2.5;
   }
 
-  const usableWidth = p5.width - sideFrameThickness * 2; // Adjusted width
-  const usableHeight = p5.height - topFrameThickness - bottomFrameThickness; // Adjusted height, excluding bottom frame
+  let usableWidth = p5.width - leftFrame - rightFrame; // Adjusted width
+  let usableHeight = p5.height - topFrame - bottomFrame; // Adjusted height, excluding bottom frame
 
+  if (PARAMS.template !== 'fullscreen') {
+    p5.fill(255);
+    p5.rectMode(p5.CORNER);
+    p5.noStroke();
+    if (PARAMS.textSize === 's') {
+      p5.textSize(p5.width * 0.021875);
+    } else if (PARAMS.textSize === 'm') {
+      p5.textSize(p5.width * 0.041875);
+    } else if (PARAMS.textSize === 'l') {
+      p5.textSize(p5.width * 0.0651042);
+    }
+  }
+  if (PARAMS.template === 'squareCustomLong') {
+    if (PARAMS.textSize === 's') {
+      p5.textSize(p5.height * 0.03856749311);
+    } else if (PARAMS.textSize === 'm') {
+      p5.textSize(p5.height * 0.0787037037);
+    } else if (PARAMS.textSize === 'l') {
+      p5.textSize(p5.height * 0.1157407407);
+    }
+  }
+  if (PARAMS.template === 'horizontalCustomShort' || PARAMS.template === 'horizontalStandardSmall' || PARAMS.template === 'horizontalStandardBig') {
+    const svgHeight = bottomFrame / 2;
+    const svgX = leftFrame;
+    const svgY = p5.height - bottomFrame/4 - svgHeight;
+    
+    // Draw the SVG image
+    p5.image(svgImage, svgX, svgY, svgHeight * svgAspectRatio, svgHeight);
+  }
+  if (PARAMS.template === 'horizontalCustomLong') {
+    const svgHeight = p5.width / 100 * 5;
+    const svgX = rightFrame;
+    const svgY = p5.height - bottomFrame - svgHeight;
+
+    // Draw the SVG image
+    p5.image(svgImage, svgX, svgY, svgHeight * svgAspectRatio, svgHeight);
+    p5.fill(255);
+
+    // Text properties
+    const lineHeight = p5.textSize() * lineHeightTextL; // Line height
+    p5.textLeading(lineHeight); // Set line height for multiline text
+    p5.textAlign(p5.LEFT, p5.BASELINE);
+
+    const textBaselineY = topFrame + p5.textSize() * fontCapsRatio; // Baseline position
+    const textX = rightFrame; // Padding from the right edge
+
+    // Process the text to handle \n
+    const lines = PARAMS.text.split('\\n'); // Split text by \n
+    
+    // Render each line
+    for (let i = 0; i < lines.length; i++) {
+      const lineY = textBaselineY + i * lineHeight; // Calculate Y position for each line
+      p5.text(lines[i], textX, lineY, leftFrame - rightFrame * 2); // Render text line
+    }
+  }
+  if (PARAMS.template === 'squareCustomLong') {
+    const svgHeight = p5.width / 100 * 5 * 16 / 9;
+    const svgX = rightFrame;
+    const svgY = p5.height - bottomFrame / 4 - svgHeight;
+
+    // Draw the SVG image
+    p5.image(svgImage, svgX, svgY, svgHeight * svgAspectRatio, svgHeight);
+    p5.fill(255);
+
+    // Text properties
+    const lineHeight = p5.textSize() * lineHeightTextL; // Line height
+    p5.textLeading(lineHeight); // Set line height for multiline text
+    p5.textAlign(p5.LEFT, p5.BASELINE);
+
+    const textBaselineY = rightFrame + p5.textSize() * fontCapsRatio; // Baseline position
+    const textX = rightFrame; // Padding from the right edge
+    const maxWidth = p5.width - leftFrame - rightFrame; // Maximum width for text wrapping
+
+    // Process the text to handle \n
+    const lines = PARAMS.text.split('\\n'); // Split text by \n
+
+    // Calculate textHeight explicitly
+    let totalWrappedLineCount = 0;
+
+    const lineWrappedCounts = lines.map((line) => {
+        const words = line.split(' '); // Split the line into words
+        let currentLine = '';
+        let wrappedLineCount = 1; // Start with one line
+
+        for (const word of words) {
+            const testLine = currentLine + (currentLine ? ' ' : '') + word;
+            const testWidth = p5.textWidth(testLine);
+
+            if (testWidth > maxWidth) {
+                // If adding this word exceeds maxWidth, start a new line
+                currentLine = word;
+                wrappedLineCount++;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        return wrappedLineCount;
+    });
+
+    totalWrappedLineCount = lineWrappedCounts.reduce((acc, count) => acc + count, 0);
+    const textHeight = totalWrappedLineCount * lineHeight + p5.textSize()*(1-fontCapsRatio); // Calculate total text height
+
+    // Render each line explicitly
+    let lineIndex = 0;
+    lines.forEach((line, i) => {
+        const words = line.split(' ');
+        let currentLine = '';
+        let wrappedLineY = textBaselineY + lineIndex * lineHeight; // Recalculate Y position for wrapped lines
+
+        for (const word of words) {
+            const testLine = currentLine + (currentLine ? ' ' : '') + word;
+            const testWidth = p5.textWidth(testLine);
+
+            if (testWidth > maxWidth) {
+                // Draw the current line
+                p5.text(currentLine, textX, wrappedLineY, maxWidth);
+                lineIndex++; // Increment the index for a new line
+                wrappedLineY = textBaselineY + lineIndex * lineHeight; // Recalculate Y position for next wrapped line
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+
+        // Draw the last line for this split line
+        p5.text(currentLine, textX, wrappedLineY, maxWidth);
+        lineIndex++; // Increment the index for the next line
+    });
+
+    // Recalculate frames and usable height    
+    topFrame = topFrame - (p5.width / 100 * 50 - textHeight) + (p5.width / 100 * 2.5 * 16/9);
+    usableHeight = p5.height - topFrame - bottomFrame;
+  }
+  if (PARAMS.template === 'horizontalCustomShort') {
+    // Text properties
+    const textBaselineY = p5.height - bottomFrame / 4; // Baseline position
+    const textX = p5.width - rightFrame; // Padding from the right edge
+
+    // Set text styles
+    p5.textAlign(p5.RIGHT, p5.BASELINE);
+    p5.text(PARAMS.text, textX, textBaselineY);
+  } else if (PARAMS.template === 'horizontalStandardSmall') {
+    
+    // Text properties
+    const lineHeight = p5.textSize() * 1; // Line height
+    p5.textLeading(lineHeight); // Set line height for multiline text
+    p5.textAlign(p5.LEFT, p5.BASELINE);
+    p5.textSize(p5.width * 0.021875);
+
+    const xPositions = [
+      leftFrame + usableWidth / 10 * 3,
+      leftFrame + usableWidth / 10 * 7,
+      leftFrame + usableWidth / 10 * 8.7,
+      // leftFrame + usableWidth / PARAMS.columns * Math.floor(PARAMS.columns/3),
+      // leftFrame + usableWidth / PARAMS.columns * Math.floor(PARAMS.columns - PARAMS.columns/3),
+      // leftFrame + usableWidth / PARAMS.columns * (PARAMS.columns - PARAMS.columns/6),
+    ];
+
+    // Loop through each multiline text and render at different X positions
+    const multilineTexts = [
+      "Shaping the Future\nwith AI",
+      "February 11-14\n2025",
+      "Lausanne\nSwitzerland"
+    ];
+    multilineTexts.forEach((line, index) => {
+      const lines = line.split("\n");
+      p5.text(line, xPositions[index], p5.height - bottomFrame/4 - lines.length*lineHeight + lineHeight);
+    });
+  } else if (PARAMS.template === 'horizontalStandardBig') {
+    
+    // Text properties
+    const lineHeight = p5.textSize() * 1; // Line height
+    p5.textLeading(lineHeight); // Set line height for multiline text
+    p5.textAlign(p5.LEFT, p5.BASELINE);
+
+    const xPositions = [
+      leftFrame + usableWidth / 10 * 7,
+      leftFrame + usableWidth / 10 * 8.7,
+    ];
+    const multilineTexts = [
+      "February 11-14\n2025",
+      "Lausanne\nSwitzerland"
+    ];
+    multilineTexts.forEach((line, index) => {
+      const lines = line.split("\n");
+      p5.text(line, xPositions[index], p5.height - bottomFrame/4 - lines.length*lineHeight + lineHeight);
+    });
+    
+    // Big texts
+    p5.textSize(p5.width * 0.0651042);
+    const lineHeight2 = p5.textSize() * lineHeightTextL; // Line height
+    const capLineHeight2 = p5.textSize() * fontCapsRatio;
+    
+    p5.fill(0);
+    p5.rect(leftFrame, topFrame, usableWidth / 10 * 4, lineHeight2*2);
+    p5.rect(p5.width - rightFrame - usableWidth / 10 * 3, topFrame, usableWidth / 10 * 3, lineHeight2);
+
+    p5.fill(255);
+    p5.textLeading(lineHeight2);
+    const multilineTexts2 = [
+      "Shaping\nthe future",
+      "with AI"
+    ];
+    p5.textAlign(p5.LEFT, p5.BASELINE);
+    p5.text(multilineTexts2[0], leftFrame, topFrame + capLineHeight2);
+    p5.textAlign(p5.RIGHT, p5.BASELINE);
+    p5.text(multilineTexts2[1], p5.width - rightFrame, topFrame + capLineHeight2);
+  }
+  
+  // Draw frame
+  if (PARAMS.template !== 'fullscreen') {
+    p5.push();
+    p5.translate(0, 0, -1);
+    p5.fill(0);
+    p5.rect(0, 0, leftFrame, p5.height); // Left frame
+    p5.rect(p5.width - rightFrame, 0, rightFrame, p5.height); // Right frame
+    p5.rect(0, 0, p5.width, topFrame); // Top frame
+    p5.rect(0, p5.height - bottomFrame, p5.width, bottomFrame); // Bottom frame
+    p5.fill(255);
+    p5.pop()
+  }
+
+  // Draw columns
   for (let col = 0; col < PARAMS.columns; col++) {
     const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
-    const columnPositionX = sideFrameThickness + (usableWidth / 100 * PARAMS.cols[col].positionX);
+    const columnPositionX = leftFrame + (usableWidth / 100 * PARAMS.cols[col].positionX);
     const increment = (PARAMS.cols[col].lineCount / (maxFrames / 2)) * PARAMS.cols[col].speed;
     const animType = PARAMS.cols[col].animationType;
     const spacing = usableHeight / PARAMS.cols[col].lineCount;
@@ -267,6 +506,8 @@ function animate(p5) {
     p5.strokeWeight(PARAMS.cols[col].thickness).strokeCap(p5.SQUARE);
 
     if (animType === 'backAndForth') {
+      p5.push();
+      p5.translate(0, 0, -p5.height);
       // Set initial direction based on 'upwards' or 'downwards' parameter
       let initialDirection = PARAMS.cols[col].direction === 'upwards' ? -1 : 1;
       if (!direction[col]) direction[col] = initialDirection;
@@ -291,51 +532,57 @@ function animate(p5) {
       for (let i = 0; i <= Math.floor(currentLine[col]); i++) {
           // Calculate yPos based on initial direction and the usable area
           let yPos = initialDirection === 1
-              ? topFrameThickness + spacing * i // Lines appear from top to bottom within the usable height
-              : topFrameThickness + (usableHeight - spacing * i); // Lines appear from bottom to top within the usable height
+              ? topFrame + spacing * i // Lines appear from top to bottom within the usable height
+              : topFrame + (usableHeight - spacing * i); // Lines appear from bottom to top within the usable height
 
           // Ensure lines stay within the frame boundaries
-          if (yPos >= topFrameThickness && yPos <= p5.height - bottomFrameThickness) {
+          if (yPos >= topFrame && yPos <= p5.height - bottomFrame) {
               p5.line(columnStartX, yPos, columnEndX, yPos);
           }
       }
+      p5.pop();
     }
 
-
-
-
     if (animType === 'verticalContinuous') {
+      p5.push();
+      p5.translate(0, 0, -p5.height);
       let speed = spacing / duration / 1000 * PARAMS.cols[col].speed;   
       let deltaY = ((p5.millis() - startTime) * speed) * (PARAMS.cols[col].direction === 'upwards' ? -1 : 1);
 
       for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
         let newY = (i * spacing + deltaY) % usableHeight;
         if (newY < 0) newY += usableHeight;
-        newY += topFrameThickness;
+        newY += topFrame;
 
-        if (newY >= topFrameThickness && newY <= p5.height - bottomFrameThickness) {
+        if (newY >= topFrame && newY <= p5.height - bottomFrame) {
             p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
         }
       }
+      p5.pop();
     }
 
 
     if (animType === 'verticalBouncing') {
+      p5.push();
+      p5.translate(0, 0, -p5.height);
       const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed);
       const deltaY = Math.pow(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI), 2) * spacing;
 
       for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
         let newY = (i * spacing + deltaY) % usableHeight;
         if (newY < 0) newY += usableHeight; // Adjust to avoid negative Y values
-        newY += topFrameThickness;
+        newY += topFrame;
 
-        if (newY >= topFrameThickness && newY <= p5.height - bottomFrameThickness) {
+        if (newY >= topFrame && newY <= p5.height - bottomFrame) {
             p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
         }
       }
+      p5.pop();
     }
 
     if (animType === 'edge') {
+      p5.push();
+      p5.translate(0, 0, -p5.height);
       const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed;
       const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
 
@@ -346,20 +593,21 @@ function animate(p5) {
       const dynamicSpacingBottom = baseSpacing * spacingFactorBottom;
 
       // Draw lines top-to-bottom (first set)
-      let currentYTop = topFrameThickness; // Start from the top within usable area
+      let currentYTop = topFrame; // Start from the top within usable area
       for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
         p5.line(columnPositionX, currentYTop, columnPositionX + columnWidth, currentYTop);
         currentYTop += dynamicSpacingTop;
-        if (currentYTop > p5.height - bottomFrameThickness) break; // Stop when reaching the bottom frame boundary
+        if (currentYTop > p5.height - bottomFrame) break; // Stop when reaching the bottom frame boundary
       }
 
       // Draw lines bottom-to-top (second set)
-      let currentYBottom = p5.height - bottomFrameThickness; // Start from the bottom within usable area
+      let currentYBottom = p5.height - bottomFrame; // Start from the bottom within usable area
       for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
         p5.line(columnPositionX, currentYBottom, columnPositionX + columnWidth, currentYBottom);
         currentYBottom -= dynamicSpacingBottom;
-        if (currentYBottom < topFrameThickness) break; // Stop when reaching the top frame boundary
+        if (currentYBottom < topFrame) break; // Stop when reaching the top frame boundary
       }
+      p5.pop();
     }
 
     if (animType === 'cylinder') {
@@ -368,7 +616,7 @@ function animate(p5) {
       const startX = -columnWidth / 2, endX = columnWidth / 2;
 
       p5.push();
-      p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrameThickness, -p5.height);
+      p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
 
       const anglePerLine = p5.TWO_PI / numLines; // Angle per line (360° / numLines)
       
@@ -395,7 +643,6 @@ function animate(p5) {
             p5.line(startX, y1, z1, endX, y1, z1); // Line along the column width
         }
       }
-
       p5.pop();
     }
 
@@ -410,7 +657,7 @@ function animate(p5) {
         const startX = -columnWidth / 2, endX = columnWidth / 2;
 
         p5.push();
-        p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrameThickness, -p5.height);
+        p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
 
         // Calculate rotation based on elapsed time and speed
         const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Convert duration from seconds to milliseconds
@@ -430,11 +677,10 @@ function animate(p5) {
 
             // Only draw lines where Z position is positive (in the visible half-circle area)
             // And ensure lines are within the usable height (taking frame thickness into account)
-            if (z1 >= topFrameThickness && z1 <= p5.height - bottomFrameThickness) {
+            if (z1 >= topFrame && z1 <= p5.height - bottomFrame) {
                 p5.line(startX, y1, z1, endX, y1, z1); // Line along the column width
             }
         }
-
         p5.pop();
     }
 
@@ -445,7 +691,7 @@ function animate(p5) {
       const numLines = PARAMS.cols[col].lineCount; // Number of lines based on column's lineCount
 
       p5.push();
-      p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrameThickness, -p5.height);
+      p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
 
       // Calculate the rotation angle based on elapsed time
       const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Convert duration to milliseconds
@@ -477,105 +723,9 @@ function animate(p5) {
         const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
         p5.line(-columnWidth / 2, columnHeight / 2, yPos, columnWidth / 2, columnHeight / 2, yPos); // Top side lines
       }
-
       p5.pop();
     }
   }
-
-  if (PARAMS.template !== 'fullscreen') {
-    p5.fill(0, 0, 0);
-    p5.rectMode(p5.CORNER);
-    p5.noStroke();
-    // p5.noStroke();
-    p5.rect(0, 0, sideFrameThickness, p5.height); // Left frame
-    p5.rect(p5.width - sideFrameThickness, 0, sideFrameThickness, p5.height); // Right frame
-    p5.rect(0, 0, p5.width, topFrameThickness); // Top frame
-    p5.rect(0, p5.height - bottomFrameThickness, p5.width, bottomFrameThickness); // Bottom frame
-
-    const svgAspectRatio = svgImage.width / svgImage.height; // Aspect ratio of the SVG
-    const svgHeight = bottomFrameThickness / 2;
-    const svgWidth = svgHeight * svgAspectRatio;
-    const svgX = sideFrameThickness;
-    const svgY = p5.height - bottomFrameThickness + (bottomFrameThickness - svgHeight) / 2;
-    
-    // Draw the SVG image
-    p5.image(svgImage, svgX, svgY, svgWidth, svgHeight);
-
-    if (PARAMS.textSize === 'm') {
-      p5.textSize(p5.width * 0.021875);
-    } else if (PARAMS.textSize === 'l') {
-      p5.textSize(p5.width * 0.041875);
-    }
-  }
-  if (PARAMS.template === 'horizontalCustom') {
-    // Text properties
-    const textBaselineY = p5.height - bottomFrameThickness / 4; // Baseline position
-    const textX = p5.width - sideFrameThickness; // Padding from the right edge
-
-    // Set text styles
-    p5.textAlign(p5.RIGHT, p5.BASELINE); // Align right and use alphabetic baseline
-    p5.fill(255);
-    p5.text(PARAMS.text, textX, textBaselineY);
-  } else if (PARAMS.template === 'horizontalStandard') {
-    // Text properties
-    const lineHeight = p5.textSize() * 1; // Line height
-    p5.textLeading(lineHeight); // Set line height for multiline text
-    
-    // Set base Y position for text (bottom of frame)
-    const baseY = p5.height - bottomFrameThickness / 4;
-    
-    // Set text styles
-    p5.textAlign(p5.LEFT, p5.BASELINE);
-    p5.fill(255);
-
-    // Set the text size (you can adjust this based on your preference)
-    if (PARAMS.textSize === 'm') {
-      p5.textSize(p5.width * 0.021875);
-    } else if (PARAMS.textSize === 'l') {
-      p5.textSize(p5.width * 0.041875);
-    }
-
-    const xPositions = [
-      (p5.width - sideFrameThickness * 2) / 4 * 1 + sideFrameThickness,
-      (p5.width - sideFrameThickness * 2) / 4 * 2 + sideFrameThickness,
-      (p5.width - sideFrameThickness * 2) / 4 * 3 + sideFrameThickness,
-    ];
-
-    // Text for the three columns
-    const multilineTexts = [
-      "Shaping the Future\nwith AI",
-      "February 11-14\n2025",
-      "Lausanne\nSwitzerland"
-    ];
-
-    // Loop through each multiline text and render at different X positions
-    multilineTexts.forEach((line, index) => {
-      // Split the text into lines to get the total number of lines
-      const lines = line.split("\n");
-
-      // Render each multiline text at its specific X position
-      p5.text(line, xPositions[index], p5.height - bottomFrameThickness/4 - lines.length*lineHeight + lineHeight);
-    });
-  }
-
-  function textHeight(text, maxWidth) {
-    var words = text.split(' ');
-    var line = '';
-    var h = this._textLeading;
-
-    for (var i = 0; i < words.length; i++) {
-        var testLine = line + words[i] + ' ';
-        var testWidth = drawingContext.measureText(testLine).width;
-
-        if (testWidth > maxWidth && i > 0) {
-            line = words[i] + ' ';
-            h += this._textLeading;
-        } else {
-            line = testLine;
-        }
-    }
-    return h;
- }
 
   
   // Capture and frame counting logic
@@ -623,14 +773,18 @@ onMount(() => {
   tab.pages[0].addBinding(PARAMS, 'template', {
     options: {
       'Fullscreen': 'fullscreen',
-      'Horizontal custom': 'horizontalCustom',
-      'Horizontal standard': 'horizontalStandard',
+      'Horizontal custom short': 'horizontalCustomShort',
+      'Horizontal custom long': 'horizontalCustomLong',
+      'Horizontal standard small': 'horizontalStandardSmall',
+      'Horizontal standard big': 'horizontalStandardBig',
+      'Square custom long': 'squareCustomLong',
     }
   }).on('change', () => {setTemplate(PARAMS.template, text, textSize); pane.refresh(); console.log(PARAMS.template);});
   text = tab.pages[0].addBinding(PARAMS, 'text', {hidden: true});
   textSize = tab.pages[0].addBinding(PARAMS, 'textSize', {
     hidden: true,
     options: {
+      'S': 's',
       'M': 'm',
       'L': 'l',
     }
@@ -736,16 +890,31 @@ onMount(() => {
 function setTemplate(template, text, textSize) {
   text.hidden = true;
   textSize.hidden = true;
-  if (template === 'horizontalCustom') {
+  if (template === 'horizontalCustomLong') {
       text.hidden = false;
       textSize.hidden = false;
       PARAMS.width = 1920;
       PARAMS.height = 1080;
-  } else if (template === 'horizontalStandard') {
+      PARAMS.textSize = 'l';
+      PARAMS.text = 'Transforming Business Operations with AI';
+  } else if (template === 'squareCustomLong') {
+      text.hidden = false;
+      textSize.hidden = false;
+      PARAMS.width = 1080;
+      PARAMS.height = 1080;
+      PARAMS.textSize = 'l';
+      PARAMS.text = 'Transforming Business Operations with AI';
+  } else if (template === 'horizontalCustomShort') {
+      text.hidden = false;
+      textSize.hidden = false;
       PARAMS.width = 1920;
       PARAMS.height = 1080;
-      PARAMS.text = 'Layout da completare';
       PARAMS.textSize = 'm';
+      PARAMS.text = 'Registration open!';
+  } else if (template === 'horizontalStandardSmall' || template === 'horizontalStandardBig') {
+      PARAMS.width = 1920;
+      PARAMS.height = 1080;
+      PARAMS.textSize = 's';
   }
 }
 
