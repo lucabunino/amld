@@ -16,8 +16,13 @@ let startTime = $state(false);
 let startStopButton = null;
 let restartButton = null;
 let renderButton = $state();
+let imageLinesRotation = $state();
+let imageLines = $state();
+let imageAccuracy = $state();
+let imageCustom = $state();
 let text = $state();
 let textSize = $state();
+let uploadedImage = $state('/default.jpg');
 
 const framerate = 60;
 const startingColumns = 4;
@@ -33,9 +38,13 @@ const PARAMS = {
   format: 'webm',
   timeline: 0,
   halvingFactor: 0,
-  template: 'fullscreen',
+  template: 'horizontalCustomShort',
   text: "Registration open!",
   textSize: "l",
+  image: false,
+  imageLinesRotation: 'vertical',
+  imageLines: 100,
+  imageAccuracy: 20,
   cols: Array.from({ length: maxColumns }, (_, index) => {
     if (index < startingColumns) {
       // For the first 4 columns
@@ -131,13 +140,58 @@ const presets = {
     animationTypes: ['cylinder', 'halfCylinder'],
   },
   10: {
-    lineCount: { min: 5, max: 50 },
+    lineCount: { min: 2, max: 10 },
     speed: { min: 1, max: 2 },
+    thickness: { min: 1, max: 1 },
+    orderedColumns: false,
+    positionX: { min: 0, max: 0 },
+    width: { min: 10, max: 100 },
+    animationTypes: ['verticalContinuous', 'verticalBouncing'],
+  },
+  11: {
+    lineCount: { min: 2, max: 5 },
+    speed: { min: 1, max: 10 },
+    thickness: { min: 5, max: 10 },
+    orderedColumns: false,
+    positionX: { min: 0, max: 0 },
+    width: { min: 10, max: 100 },
+    animationTypes: ['cylinder', 'halfCylinder'],
+  },
+  12: {
+    lineCount: { min: 10, max: 30 },
+    speed: { min: 3, max: 10 },
+    thickness: { min: 1, max: 1 },
+    orderedColumns: false,
+    positionX: { min: 0, max: 50 },
+    width: { min: 1, max: 50 },
+    animationTypes: ['verticalContinuous', 'backAndForth', 'edge'],
+  },
+  13: {
+    lineCount: { min: 15, max: 50 },
+    speed: { min: 5, max: 12 },
+    thickness: { min: 1, max: 20 },
+    orderedColumns: false,
+    positionX: { min: 0, max: 100 }, // No guarantee of first column alignment
+    width: { min: 10, max: 100 },
+    animationTypes: ['verticalContinuous', 'cylinder', 'halfCylinder'],
+  },
+  14: {
+    lineCount: { min: 20, max: 70 },
+    speed: { min: 6, max: 15 },
+    thickness: { min: 1, max: 20 },
+    orderedColumns: false,
+    positionX: { min: 0, max: 75 }, // No guarantee of first column alignment
+    width: { min: 25, max: 100 },
+    animationTypes: ['verticalContinuous', 'edge', 'backAndForth'],
+  },
+  15: {
+    lineCount: { min: 1, max: 100 },
+    speed: { min: 8, max: 20 },
     thickness: { min: 1, max: 10 },
     orderedColumns: false,
-    width: { min: 10, max: 50 },
-    positionX: { min: 0, max: 75 },
-    animationTypes: ['verticalContinuous', 'verticalBouncing', 'backAndForth'],
+    positionX: { min: 0, max: 300 }, // Completely chaotic
+    width: { min: 10, max: 150 },
+    animationTypes: ['verticalContinuous', 'verticalBouncing', 'edge', 'backAndForth', 'cylinder', 'halfCylinder'],
   },
 };
 function getRandom(min, max) {
@@ -212,7 +266,7 @@ let font;
 let sketch = $state((p5) => {
   
   p5.preload = () => {
-    svgImage = p5.loadImage('/logo.svg');  // Replace with the correct path to your SVG file
+    svgImage = p5.loadImage('/logo.svg');
     font = p5.loadFont('/fonts/SuisseIntl-SemiBold.otf');
   }
 
@@ -262,11 +316,6 @@ function animate(p5) {
     rightFrame = p5.width / 100 * 2.5 * 16/9;
     bottomFrame = p5.width / 100 * 10 * 16/9;
     leftFrame = p5.width / 100 * 2.5 * 16/9;
-  } else if (PARAMS.template === 'other') {
-    topFrame = p5.width / 100 * 2.5;
-    rightFrame = p5.width / 100 * 2.5;
-    bottomFrame = p5.width / 100 * 2.5;
-    leftFrame = p5.width / 100 * 2.5;
   }
 
   let usableWidth = p5.width - leftFrame - rightFrame; // Adjusted width
@@ -413,7 +462,8 @@ function animate(p5) {
     // Set text styles
     p5.textAlign(p5.RIGHT, p5.BASELINE);
     p5.text(PARAMS.text, textX, textBaselineY);
-  } else if (PARAMS.template === 'horizontalStandardSmall') {
+  } 
+  if (PARAMS.template === 'horizontalStandardSmall') {
     
     // Text properties
     const lineHeight = p5.textSize() * 1; // Line height
@@ -440,8 +490,8 @@ function animate(p5) {
       const lines = line.split("\n");
       p5.text(line, xPositions[index], p5.height - bottomFrame/4 - lines.length*lineHeight + lineHeight);
     });
-  } else if (PARAMS.template === 'horizontalStandardBig') {
-    
+  }
+  if (PARAMS.template === 'horizontalStandardBig') {
     // Text properties
     const lineHeight = p5.textSize() * 1; // Line height
     p5.textLeading(lineHeight); // Set line height for multiline text
@@ -480,7 +530,126 @@ function animate(p5) {
     p5.textAlign(p5.RIGHT, p5.BASELINE);
     p5.text(multilineTexts2[1], p5.width - rightFrame, topFrame + capLineHeight2);
   }
-  
+
+  if (PARAMS.image) {
+    if (animationRunning) {
+      toggleAnimation();
+    }
+    p5.push();
+
+    // Load and process the image
+    let img = p5.loadImage(uploadedImage, (img) => {
+      let scaleWidth = usableWidth / img.width;
+      let scaleHeight = usableHeight / img.height;
+      let scl = Math.max(scaleWidth, scaleHeight); // Scale to cover the canvas (object-fit: cover)
+      let newWidth = img.width * scl;
+      let newHeight = img.height * scl;
+
+      // Calculate offsets to center the image
+      let xOffset = (newWidth - usableWidth) / 2; // Left cropping offset
+      let yOffset = (newHeight - usableHeight) / 2; // Top cropping offset
+
+      // Resize the image based on scale
+      img.resize(newWidth, newHeight);
+
+      // Crop and center the image on the canvas
+      // p5.image(
+      //   img,
+      //   leftFrame, // Destination X on canvas
+      //   topFrame,  // Destination Y on canvas
+      //   usableWidth, // Destination width
+      //   usableHeight, // Destination height
+      //   xOffset, // Source X from the image
+      //   yOffset, // Source Y from the image
+      //   usableWidth, // Source width from the image
+      //   usableHeight // Source height from the image
+      // );
+
+      // Draw line art on top of the cropped image
+      drawLineArt(img, PARAMS.imageLines, PARAMS.imageAccuracy, leftFrame, topFrame, usableWidth, usableHeight, xOffset, yOffset);
+    });
+    p5.translate(0, 0, -p5.height);
+    p5.pop();
+  }
+
+  function drawLineArt(img, lines, accuracy, xPos, yPos, imgWidth, imgHeight, xOffset, yOffset) {
+    img.loadPixels();
+
+    p5.push();
+    p5.translate(0, 0, -100);
+
+    if (PARAMS.imageLinesRotation === 'vertical') {
+        // Horizontal gap based on lines, vertical gap based on accuracy
+        let horizontalGap = Math.floor(imgWidth / lines);  // controls the number of vertical lines
+        let verticalGap = Math.floor(imgHeight / accuracy);  // controls the height of each line
+
+        for (let x = horizontalGap >> 1; x < imgWidth; x += horizontalGap) {
+            for (let y = 0; y < imgHeight; y += verticalGap) {
+                let minX = x - (horizontalGap >> 1) + xOffset;
+                let maxX = x + (horizontalGap >> 1) + xOffset;
+                let minY = p5.constrain(y - (verticalGap >> 1) + yOffset, 0, img.height);
+                let maxY = p5.constrain(y + (verticalGap >> 1) + yOffset, 0, img.height);
+                let areaPixels = (maxY - minY) * (maxX - minX);
+
+                let light = 0;
+
+                for (let ay = minY; ay < maxY; ay++) {
+                    for (let ax = minX; ax < maxX; ax++) {
+                        let index = 4 * (ay * img.width + ax);
+                        let alphaIndex = index + 3;
+                        light += (img.pixels[index] * img.pixels[alphaIndex]) / 255;
+                    }
+                }
+
+                light /= areaPixels;
+
+                let rectWidth = p5.map(light, 0, 255, 0, horizontalGap);
+
+                p5.fill(255);
+                p5.noStroke();
+                p5.rect(x + xPos - rectWidth / 2, y + yPos, rectWidth, verticalGap);  // Draw vertical line as rectangle
+            }
+        }
+    } else {
+        // Horizontal gap based on accuracy, vertical gap based on lines
+        let horizontalGap = Math.floor(imgWidth / accuracy);  // controls the width of each horizontal line
+        let verticalGap = Math.floor(imgHeight / lines);  // controls the number of horizontal lines
+
+        for (let y = 0; y < imgHeight; y += verticalGap) {
+            for (let x = horizontalGap >> 1; x < imgWidth; x += horizontalGap) {
+                let minY = p5.constrain(y - (verticalGap >> 1) + yOffset, 0, img.height);
+                let maxY = p5.constrain(y + (verticalGap >> 1) + yOffset, 0, img.height);
+                let minX = x - (horizontalGap >> 1) + xOffset;
+                let maxX = x + (horizontalGap >> 1) + xOffset;
+                let areaPixels = (maxX - minX) * (maxY - minY);
+
+                let light = 0;
+
+                for (let ay = minY; ay < maxY; ay++) {
+                    for (let ax = minX; ax < maxX; ax++) {
+                        let index = 4 * (ay * img.width + ax);
+                        let alphaIndex = index + 3;
+                        light += (img.pixels[index] * img.pixels[alphaIndex]) / 255;
+                    }
+                }
+
+                light /= areaPixels;
+
+                // Adjust rectangle height based on brightness (light), width based on accuracy
+                let rectHeight = p5.map(light, 0, 255, 0, verticalGap); // Height based on brightness
+                let rectWidth = Math.floor(imgWidth / accuracy); // Width based on accuracy
+
+                p5.fill(255);
+                p5.noStroke();
+                p5.rect(x + xPos - rectHeight / 2, y + yPos - rectHeight / 2, rectWidth, rectHeight); // Draw horizontal rectangle
+            }
+        }
+    }
+
+    p5.pop();
+}
+
+
   // Draw frame
   if (PARAMS.template !== 'fullscreen') {
     p5.push();
@@ -494,236 +663,233 @@ function animate(p5) {
     p5.pop()
   }
 
-  // Draw columns
-  for (let col = 0; col < PARAMS.columns; col++) {
-    const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
-    const columnPositionX = leftFrame + (usableWidth / 100 * PARAMS.cols[col].positionX);
-    const increment = (PARAMS.cols[col].lineCount / (maxFrames / 2)) * PARAMS.cols[col].speed;
-    const animType = PARAMS.cols[col].animationType;
-    const spacing = usableHeight / PARAMS.cols[col].lineCount;
-
-    p5.stroke(255);
-    p5.strokeWeight(PARAMS.cols[col].thickness).strokeCap(p5.SQUARE);
-
-    if (animType === 'backAndForth') {
-      p5.push();
-      p5.translate(0, 0, -p5.height);
-      // Set initial direction based on 'upwards' or 'downwards' parameter
-      let initialDirection = PARAMS.cols[col].direction === 'upwards' ? -1 : 1;
-      if (!direction[col]) direction[col] = initialDirection;
-
-      // Update current line position with current direction
-      currentLine[col] += increment * direction[col];
-
-      // Adjust to prevent the animation from skipping the last frame
-      if (currentLine[col] >= PARAMS.cols[col].lineCount) {
-          currentLine[col] = PARAMS.cols[col].lineCount - 1; // Ensure the line doesn't overshoot the boundary
-          direction[col] *= -1; // Reverse direction
-      } else if (currentLine[col] <= -1) {
-          currentLine[col] = 0; // Ensure it doesn't undershoot the starting point
-          direction[col] *= -1; // Reverse direction
-      }
-
-      // Calculate usable width, considering the frame boundaries
-      const columnStartX = columnPositionX;
-      const columnEndX = columnPositionX + columnWidth;
-
-      // Draw the lines up to the current line position
-      for (let i = 0; i <= Math.floor(currentLine[col]); i++) {
-          // Calculate yPos based on initial direction and the usable area
-          let yPos = initialDirection === 1
-              ? topFrame + spacing * i // Lines appear from top to bottom within the usable height
-              : topFrame + (usableHeight - spacing * i); // Lines appear from bottom to top within the usable height
-
-          // Ensure lines stay within the frame boundaries
-          if (yPos >= topFrame && yPos <= p5.height - bottomFrame) {
-              p5.line(columnStartX, yPos, columnEndX, yPos);
-          }
-      }
-      p5.pop();
-    }
-
-    if (animType === 'verticalContinuous') {
-      p5.push();
-      p5.translate(0, 0, -p5.height);
-      let speed = spacing / duration / 1000 * PARAMS.cols[col].speed;   
-      let deltaY = ((p5.millis() - startTime) * speed) * (PARAMS.cols[col].direction === 'upwards' ? -1 : 1);
-
-      for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-        let newY = (i * spacing + deltaY) % usableHeight;
-        if (newY < 0) newY += usableHeight;
-        newY += topFrame;
-
-        if (newY >= topFrame && newY <= p5.height - bottomFrame) {
-            p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
-        }
-      }
-      p5.pop();
-    }
-
-
-    if (animType === 'verticalBouncing') {
-      p5.push();
-      p5.translate(0, 0, -p5.height);
-      const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed);
-      const deltaY = Math.pow(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI), 2) * spacing;
-
-      for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-        let newY = (i * spacing + deltaY) % usableHeight;
-        if (newY < 0) newY += usableHeight; // Adjust to avoid negative Y values
-        newY += topFrame;
-
-        if (newY >= topFrame && newY <= p5.height - bottomFrame) {
-            p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
-        }
-      }
-      p5.pop();
-    }
-
-    if (animType === 'edge') {
-      p5.push();
-      p5.translate(0, 0, -p5.height);
-      const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed;
-      const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
-
-      const spacingFactorTop = Math.pow(Math.sin(elapsed * Math.PI), 2);
-      const spacingFactorBottom = 1 - spacingFactorTop;
-      const baseSpacing = usableHeight / PARAMS.cols[col].lineCount; // Adjust for usableHeight
-      const dynamicSpacingTop = baseSpacing * spacingFactorTop;
-      const dynamicSpacingBottom = baseSpacing * spacingFactorBottom;
-
-      // Draw lines top-to-bottom (first set)
-      let currentYTop = topFrame; // Start from the top within usable area
-      for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-        p5.line(columnPositionX, currentYTop, columnPositionX + columnWidth, currentYTop);
-        currentYTop += dynamicSpacingTop;
-        if (currentYTop > p5.height - bottomFrame) break; // Stop when reaching the bottom frame boundary
-      }
-
-      // Draw lines bottom-to-top (second set)
-      let currentYBottom = p5.height - bottomFrame; // Start from the bottom within usable area
-      for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
-        p5.line(columnPositionX, currentYBottom, columnPositionX + columnWidth, currentYBottom);
-        currentYBottom -= dynamicSpacingBottom;
-        if (currentYBottom < topFrame) break; // Stop when reaching the top frame boundary
-      }
-      p5.pop();
-    }
-
-    if (animType === 'cylinder') {
-      const numLines = PARAMS.cols[col].lineCount;
-      const columnWidth = usableWidth / 100 * PARAMS.cols[col].width; 
-      const startX = -columnWidth / 2, endX = columnWidth / 2;
-
-      p5.push();
-      p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
-
-      const anglePerLine = p5.TWO_PI / numLines; // Angle per line (360° / numLines)
-      
-      const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Time to rotate by one line
-      const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
-
-      const rotationAmount = elapsed * anglePerLine; // The rotation amount for each line
-
-      p5.rotateX(rotationAmount); // Apply linear rotation (no easing)
+  if (!PARAMS.image) {
+    for (let col = 0; col < PARAMS.columns; col++) {
+      const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
+      const columnPositionX = leftFrame + (usableWidth / 100 * PARAMS.cols[col].positionX);
+      const increment = (PARAMS.cols[col].lineCount / (maxFrames / 2)) * PARAMS.cols[col].speed;
+      const animType = PARAMS.cols[col].animationType;
+      const spacing = usableHeight / PARAMS.cols[col].lineCount;
 
       p5.stroke(255);
-      p5.noFill();
+      p5.strokeWeight(PARAMS.cols[col].thickness).strokeCap(p5.SQUARE);
 
-      const radius = usableHeight / 2;
-      const angleOffset = anglePerLine / 2; // Offset by half the angle per line to center the lines
-      for (let i = 0; i < numLines; i++) {
-        const angle = p5.map(i, 0, numLines, 0, p5.TWO_PI) + angleOffset;
+      if (animType === 'backAndForth') {
+        p5.push();
+        p5.translate(0, 0, -p5.height);
+        // Set initial direction based on 'upwards' or 'downwards' parameter
+        let initialDirection = PARAMS.cols[col].direction === 'upwards' ? -1 : 1;
+        if (!direction[col]) direction[col] = initialDirection;
 
-        const rotatedAngle = angle + rotationAmount; // Apply the linear rotation directly
-        const y1 = p5.cos(rotatedAngle) * radius;
-        const z1 = p5.sin(rotatedAngle) * radius;
+        // Update current line position with current direction
+        currentLine[col] += increment * direction[col];
 
-        if (Math.abs(y1) <= p5.height / 2 && Math.abs(z1) <= p5.height / 2) {
-            p5.line(startX, y1, z1, endX, y1, z1); // Line along the column width
+        // Adjust to prevent the animation from skipping the last frame
+        if (currentLine[col] >= PARAMS.cols[col].lineCount) {
+            currentLine[col] = PARAMS.cols[col].lineCount - 1; // Ensure the line doesn't overshoot the boundary
+            direction[col] *= -1; // Reverse direction
+        } else if (currentLine[col] <= -1) {
+            currentLine[col] = 0; // Ensure it doesn't undershoot the starting point
+            direction[col] *= -1; // Reverse direction
         }
+
+        // Calculate usable width, considering the frame boundaries
+        const columnStartX = columnPositionX;
+        const columnEndX = columnPositionX + columnWidth;
+
+        // Draw the lines up to the current line position
+        for (let i = 0; i <= Math.floor(currentLine[col]); i++) {
+            // Calculate yPos based on initial direction and the usable area
+            let yPos = initialDirection === 1
+                ? topFrame + spacing * i // Lines appear from top to bottom within the usable height
+                : topFrame + (usableHeight - spacing * i); // Lines appear from bottom to top within the usable height
+
+            // Ensure lines stay within the frame boundaries
+            if (yPos >= topFrame && yPos <= p5.height - bottomFrame) {
+                p5.line(columnStartX, yPos, columnEndX, yPos);
+            }
+        }
+        p5.pop();
       }
-      p5.pop();
-    }
+
+      if (animType === 'verticalContinuous') {
+        p5.push();
+        p5.translate(0, 0, -p5.height);
+        let speed = spacing / duration / 1000 * PARAMS.cols[col].speed;   
+        let deltaY = ((p5.millis() - startTime) * speed) * (PARAMS.cols[col].direction === 'upwards' ? -1 : 1);
+
+        for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
+          let newY = (i * spacing + deltaY) % usableHeight;
+          if (newY < 0) newY += usableHeight;
+          newY += topFrame;
+
+          if (newY >= topFrame && newY <= p5.height - bottomFrame) {
+              p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
+          }
+        }
+        p5.pop();
+      }
 
 
+      if (animType === 'verticalBouncing') {
+        p5.push();
+        p5.translate(0, 0, -p5.height);
+        const bounceSpeed = (1 / (duration * 1000) * PARAMS.cols[col].speed);
+        const deltaY = Math.pow(Math.sin((p5.millis() - startTime) * bounceSpeed * Math.PI), 2) * spacing;
 
+        for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
+          let newY = (i * spacing + deltaY) % usableHeight;
+          if (newY < 0) newY += usableHeight; // Adjust to avoid negative Y values
+          newY += topFrame;
 
-    if (animType === 'halfCylinder') {
+          if (newY >= topFrame && newY <= p5.height - bottomFrame) {
+              p5.line(columnPositionX, newY, columnPositionX + columnWidth, newY);
+          }
+        }
+        p5.pop();
+      }
+
+      if (animType === 'edge') {
+        p5.push();
+        p5.translate(0, 0, -p5.height);
+        const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed;
+        const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
+
+        const spacingFactorTop = Math.pow(Math.sin(elapsed * Math.PI), 2);
+        const spacingFactorBottom = 1 - spacingFactorTop;
+        const baseSpacing = usableHeight / PARAMS.cols[col].lineCount; // Adjust for usableHeight
+        const dynamicSpacingTop = baseSpacing * spacingFactorTop;
+        const dynamicSpacingBottom = baseSpacing * spacingFactorBottom;
+
+        // Draw lines top-to-bottom (first set)
+        let currentYTop = topFrame; // Start from the top within usable area
+        for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
+          p5.line(columnPositionX, currentYTop, columnPositionX + columnWidth, currentYTop);
+          currentYTop += dynamicSpacingTop;
+          if (currentYTop > p5.height - bottomFrame) break; // Stop when reaching the bottom frame boundary
+        }
+
+        // Draw lines bottom-to-top (second set)
+        let currentYBottom = p5.height - bottomFrame; // Start from the bottom within usable area
+        for (let i = 0; i < PARAMS.cols[col].lineCount; i++) {
+          p5.line(columnPositionX, currentYBottom, columnPositionX + columnWidth, currentYBottom);
+          currentYBottom -= dynamicSpacingBottom;
+          if (currentYBottom < topFrame) break; // Stop when reaching the top frame boundary
+        }
+        p5.pop();
+      }
+
+      if (animType === 'cylinder') {
         const numLines = PARAMS.cols[col].lineCount;
-
-        // Use the provided usableWidth
-        const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
+        const columnWidth = usableWidth / 100 * PARAMS.cols[col].width; 
         const startX = -columnWidth / 2, endX = columnWidth / 2;
 
         p5.push();
         p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
 
-        // Calculate rotation based on elapsed time and speed
-        const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Convert duration from seconds to milliseconds
+        const anglePerLine = p5.TWO_PI / numLines; // Angle per line (360° / numLines)
+        
+        const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Time to rotate by one line
         const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
-        p5.rotateX(elapsed * p5.TWO_PI);  // Rotate for 360° over the duration
+
+        const rotationAmount = elapsed * anglePerLine; // The rotation amount for each line
+
+        p5.rotateX(rotationAmount); // Apply linear rotation (no easing)
 
         p5.stroke(255);
         p5.noFill();
 
-        // Adjust the radius to account for frame thickness
-        const radius = usableHeight / 2;  // Use half the height for the vertical radius
-
+        const radius = usableHeight / 2;
+        const angleOffset = anglePerLine / 2; // Offset by half the angle per line to center the lines
         for (let i = 0; i < numLines; i++) {
-            const angle = p5.map(i, 0, numLines, 0, p5.TWO_PI);
-            const y1 = p5.cos(angle) * radius;
-            const z1 = p5.sin(angle) * radius;
+          const angle = p5.map(i, 0, numLines, 0, p5.TWO_PI) + angleOffset;
 
-            // Only draw lines where Z position is positive (in the visible half-circle area)
-            // And ensure lines are within the usable height (taking frame thickness into account)
-            if (z1 >= topFrame && z1 <= p5.height - bottomFrame) {
-                p5.line(startX, y1, z1, endX, y1, z1); // Line along the column width
-            }
+          const rotatedAngle = angle + rotationAmount; // Apply the linear rotation directly
+          const y1 = p5.cos(rotatedAngle) * radius;
+          const z1 = p5.sin(rotatedAngle) * radius;
+
+          if (Math.abs(y1) <= p5.height / 2 && Math.abs(z1) <= p5.height / 2) {
+              p5.line(startX, y1, z1, endX, y1, z1); // Line along the column width
+          }
         }
         p5.pop();
-    }
+      }
 
-    
-    if (animType === 'box') {
-      const columnHeight = usableHeight / Math.SQRT2;
-      const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
-      const numLines = PARAMS.cols[col].lineCount; // Number of lines based on column's lineCount
+      if (animType === 'halfCylinder') {
+          const numLines = PARAMS.cols[col].lineCount;
 
-      p5.push();
-      p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
+          // Use the provided usableWidth
+          const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
+          const startX = -columnWidth / 2, endX = columnWidth / 2;
 
-      // Calculate the rotation angle based on elapsed time
-      const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Convert duration to milliseconds
-      const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
+          p5.push();
+          p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
 
-      // Rotate the box on the X-axis based on elapsed time
-      p5.rotateX(p5.TWO_PI * elapsed);  // Rotate on the X-axis over time
+          // Calculate rotation based on elapsed time and speed
+          const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Convert duration from seconds to milliseconds
+          const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
+          p5.rotateX(elapsed * p5.TWO_PI);  // Rotate for 360° over the duration
 
-      p5.stroke(255);  // White outline for the lines
-      p5.noFill(); // No fill color for the lines
+          p5.stroke(255);
+          p5.noFill();
+
+          // Adjust the radius to account for frame thickness
+          const radius = usableHeight / 2;  // Use half the height for the vertical radius
+
+          for (let i = 0; i < numLines; i++) {
+              const angle = p5.map(i, 0, numLines, 0, p5.TWO_PI);
+              const y1 = p5.cos(angle) * radius;
+              const z1 = p5.sin(angle) * radius;
+
+              // Only draw lines where Z position is positive (in the visible half-circle area)
+              // And ensure lines are within the usable height (taking frame thickness into account)
+              if (z1 >= topFrame && z1 <= p5.height - bottomFrame) {
+                  p5.line(startX, y1, z1, endX, y1, z1); // Line along the column width
+              }
+          }
+          p5.pop();
+      }
       
-      const lineSpacing = columnHeight / (numLines - 1);
-      for (let i = 0; i < numLines; i++) {
-        const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
-        p5.line(-columnWidth / 2, yPos, -columnHeight / 2, columnWidth / 2, yPos, -columnHeight / 2); // Front side lines
-      }
+      if (animType === 'box') {
+        const columnHeight = usableHeight / Math.SQRT2;
+        const columnWidth = usableWidth / 100 * PARAMS.cols[col].width;
+        const numLines = PARAMS.cols[col].lineCount; // Number of lines based on column's lineCount
 
-      for (let i = 0; i < numLines; i++) {
-        const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
-        p5.line(-columnWidth / 2, yPos, columnHeight / 2, columnWidth / 2, yPos, columnHeight / 2); // Back side lines
-      }
+        p5.push();
+        p5.translate(columnPositionX + columnWidth / 2, usableHeight / 2 + topFrame, -p5.height);
 
-      for (let i = 0; i < numLines; i++) {
-        const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
-        p5.line(-columnWidth / 2, -columnHeight / 2, yPos, columnWidth / 2, -columnHeight / 2, yPos); // Bottom side lines
-      }
+        // Calculate the rotation angle based on elapsed time
+        const durationMillis = PARAMS.duration * 1000 / PARAMS.cols[col].speed; // Convert duration to milliseconds
+        const elapsed = ((p5.millis() - startTime) % durationMillis) / durationMillis;
 
-      for (let i = 0; i < numLines; i++) {
-        const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
-        p5.line(-columnWidth / 2, columnHeight / 2, yPos, columnWidth / 2, columnHeight / 2, yPos); // Top side lines
+        // Rotate the box on the X-axis based on elapsed time
+        p5.rotateX(p5.TWO_PI * elapsed);  // Rotate on the X-axis over time
+
+        p5.stroke(255);  // White outline for the lines
+        p5.noFill(); // No fill color for the lines
+        
+        const lineSpacing = columnHeight / (numLines - 1);
+        for (let i = 0; i < numLines; i++) {
+          const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
+          p5.line(-columnWidth / 2, yPos, -columnHeight / 2, columnWidth / 2, yPos, -columnHeight / 2); // Front side lines
+        }
+
+        for (let i = 0; i < numLines; i++) {
+          const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
+          p5.line(-columnWidth / 2, yPos, columnHeight / 2, columnWidth / 2, yPos, columnHeight / 2); // Back side lines
+        }
+
+        for (let i = 0; i < numLines; i++) {
+          const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
+          p5.line(-columnWidth / 2, -columnHeight / 2, yPos, columnWidth / 2, -columnHeight / 2, yPos); // Bottom side lines
+        }
+
+        for (let i = 0; i < numLines; i++) {
+          const yPos = -columnHeight / 2 + i * lineSpacing; // Y position of the current line
+          p5.line(-columnWidth / 2, columnHeight / 2, yPos, columnWidth / 2, columnHeight / 2, yPos); // Top side lines
+        }
+        p5.pop();
       }
-      p5.pop();
     }
   }
 
@@ -770,43 +936,69 @@ onMount(() => {
   });
 
   tab.pages[0].addBinding(PARAMS, 'duration', { min: 1, max: 120, step: 1 });
+  tab.pages[0].addBinding(PARAMS, 'width', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
+  tab.pages[0].addBinding(PARAMS, 'height', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
+  tab.pages[0].addBlade({
+    view: 'separator',
+  });
   tab.pages[0].addBinding(PARAMS, 'template', {
     options: {
-      'Fullscreen': 'fullscreen',
       'Horizontal custom short': 'horizontalCustomShort',
       'Horizontal custom long': 'horizontalCustomLong',
       'Horizontal standard small': 'horizontalStandardSmall',
       'Horizontal standard big': 'horizontalStandardBig',
       'Square custom long': 'squareCustomLong',
+      'Fullscreen': 'fullscreen',
     }
   }).on('change', () => {setTemplate(PARAMS.template, text, textSize); pane.refresh(); console.log(PARAMS.template);});
-  text = tab.pages[0].addBinding(PARAMS, 'text', {hidden: true});
+  text = tab.pages[0].addBinding(PARAMS, 'text').on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});;
   textSize = tab.pages[0].addBinding(PARAMS, 'textSize', {
-    hidden: true,
     options: {
       'S': 's',
       'M': 'm',
       'L': 'l',
     }
-  });
+  }).on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});;
   tab.pages[0].addBinding(PARAMS, 'columns', { min: 1, max: maxColumns, step: 1 }).on('change', () => {if (presets[lastPreset]?.orderedColumns) {setPreset(lastPreset);pane.refresh();}});
-  tab.pages[0].addBinding(PARAMS, 'width', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
-  tab.pages[0].addBinding(PARAMS, 'height', { min: 100, max: 2000, step: 10 }).on('change', handleCanvasResize);
+  tab.pages[0].addBlade({
+    view: 'separator',
+  });
+  tab.pages[0].addBinding(PARAMS, 'image',).on('change', () => {
+    imageLinesRotation.hidden = !imageLinesRotation.hidden;
+    imageLines.hidden = !imageLines.hidden;
+    imageAccuracy.hidden = !imageAccuracy.hidden;
+    imageCustom.hidden = !imageCustom.hidden;
+  });
+  imageLinesRotation = tab.pages[0].addBinding(PARAMS, 'imageLinesRotation', {
+    hidden: true,
+    options: {
+      'Vertical': 'vertical',
+      'Horizontal': 'horizontal',
+    }
+  }).on('change', () => {renderCurrentFrame(p5Instance)});
+  imageLines= tab.pages[0].addBinding(PARAMS, 'imageLines', { hidden: true, min: 1, max: 300, step: 1 }).on('change', () => {renderCurrentFrame(p5Instance)});
+  imageAccuracy = tab.pages[0].addBinding(PARAMS, 'imageAccuracy', { hidden: true, min: 2, max: 200, step: 1 }).on('change', () => {renderCurrentFrame(p5Instance)});
+  imageCustom= tab.pages[0].addButton({ title: 'Upload', label: 'imageCustom', hidden: true,}).on('click', () => {uploadImage()});
 
   const orderedPresets = tab.pages[1].addFolder({ title: `Ordered`});
   orderedPresets.addBinding(PARAMS, 'halvingFactor', {min: -5, max: 5, step: 0.1,}).on('change', () => {if (presets[lastPreset]?.orderedColumns) {setPreset(lastPreset);pane.refresh();}});
-  orderedPresets.addButton({title: 'Preset 1',}).on('click', () => {restartAnimation();setPreset(1);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 2',}).on('click', () => {restartAnimation();setPreset(2);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 3',}).on('click', () => {restartAnimation();setPreset(3);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 4',}).on('click', () => {restartAnimation();setPreset(4);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 5',}).on('click', () => {restartAnimation();setPreset(5);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 6',}).on('click', () => {restartAnimation();setPreset(6);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 7',}).on('click', () => {restartAnimation();setPreset(7);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 8',}).on('click', () => {restartAnimation();setPreset(8);pane.refresh();});
-  orderedPresets.addButton({title: 'Preset 9',}).on('click', () => {restartAnimation();setPreset(9);pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 1',}).on('click', () => {setPreset(1); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 2',}).on('click', () => {setPreset(2); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 3',}).on('click', () => {setPreset(3); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 4',}).on('click', () => {setPreset(4); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 5',}).on('click', () => {setPreset(5); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 6',}).on('click', () => {setPreset(6); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 7',}).on('click', () => {setPreset(7); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 8',}).on('click', () => {setPreset(8); restartAnimation(); pane.refresh();});
+  orderedPresets.addButton({title: 'Preset 9',}).on('click', () => {setPreset(9); restartAnimation(); pane.refresh();});
 
   const chaoticPresets = tab.pages[1].addFolder({ title: `Chaotic`});
-
+  chaoticPresets.addButton({title: 'Preset 1',}).on('click', () => {setPreset(10); restartAnimation(); pane.refresh();});
+  chaoticPresets.addButton({title: 'Preset 2',}).on('click', () => {setPreset(11); restartAnimation(); pane.refresh();});
+  chaoticPresets.addButton({title: 'Preset 3',}).on('click', () => {setPreset(12); restartAnimation(); pane.refresh();});
+  chaoticPresets.addButton({title: 'Preset 4',}).on('click', () => {setPreset(13); restartAnimation(); pane.refresh();});
+  chaoticPresets.addButton({title: 'Preset 5',}).on('click', () => {setPreset(14); restartAnimation(); pane.refresh();});
+  
   tab.pages[1].addBlade({
     view: 'separator',
   });
@@ -826,11 +1018,11 @@ onMount(() => {
 
   PARAMS.cols.forEach((col, i) => {
     const columnFolder = tab.pages[2].addFolder({ title: `Column ${i + 1}`, expanded: false });
-    columnFolder.addBinding(col, 'lineCount', { min: 1, max: 300, step: 1 });
-    columnFolder.addBinding(col, 'width', { min: 1, max: 100, step: 1 });
-    columnFolder.addBinding(col, 'positionX', { min: 0, max: 99, step: 1 });
-    columnFolder.addBinding(col, 'speed', { min: 1, max: 10, step: 1 });
-    columnFolder.addBinding(col, 'thickness', { min: 1, max: 30, step: 1 });
+    columnFolder.addBinding(col, 'lineCount', { min: 1, max: 300, step: 1 }).on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});
+    columnFolder.addBinding(col, 'width', { min: 1, max: 100, step: 1 }).on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});
+    columnFolder.addBinding(col, 'positionX', { min: 0, max: 99, step: 1 }).on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});
+    columnFolder.addBinding(col, 'speed', { min: 1, max: 10, step: 1 }).on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});
+    columnFolder.addBinding(col, 'thickness', { min: 1, max: 30, step: 1 }).on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});
     columnFolder.addBinding(col, 'animationType', {
       options: {
         'Back and Forth': 'backAndForth',
@@ -849,10 +1041,10 @@ onMount(() => {
       }
     });
   });
-  pane.addBlade({
+  settingsFolder.addBlade({
     view: 'separator',
   });
-  const playerFolder = pane.addFolder({ title: 'Player'});
+  const playerFolder = settingsFolder.addFolder({ title: 'Player'});
   playerFolder.addBinding(PARAMS, 'timeline', {
     readonly: true,
   });
@@ -865,7 +1057,7 @@ onMount(() => {
   pane.addBlade({
     view: 'separator',
   });
-  const exportFolder = pane.addFolder({ title: 'Export'});
+  const exportFolder = settingsFolder.addFolder({ title: 'Export'});
   exportFolder.addBinding(PARAMS, 'format', {
     options: {
       'WebM (Quality)': 'webm',
@@ -884,6 +1076,7 @@ onMount(() => {
     }
   });
   exportFolder.addButton({ title: 'Export Current Frame' }).on('click', exportCurrentFrame);
+  setPreset(1)
 });
 
 // Set format
@@ -918,6 +1111,28 @@ function setTemplate(template, text, textSize) {
   }
 }
 
+//Upload an image to use it in a sketch
+function uploadImage() {
+  // Create a file input element dynamically
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+
+  // Trigger the file dialog
+  input.click();
+
+  // Handle the file selection
+  input.onchange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      uploadedImage = URL.createObjectURL(file);
+    }
+    if (!animationRunning) {
+      renderCurrentFrame(p5Instance)
+    }
+  };
+}
+
 // Player and export
 function toggleAnimation() {
   animationRunning = !animationRunning;
@@ -925,17 +1140,86 @@ function toggleAnimation() {
     startStopButton.title = animationRunning ? 'Pause' : 'Play';
   }
   if (animationRunning) {
+    startTime = p5Instance.millis() - PARAMS.timeline * 1000; 
     requestAnimationFrame(() => animate(p5Instance));
   } else {
     cancelAnimationFrame(animationId);
   }
 }
+function nextFrame() {
+  if (animationRunning) {
+    toggleAnimation();
+  }
+
+  // Increment frameCounter
+  frameCounter++;
+
+  // Calculate total frames
+  const totalFrames = Math.max(1, Math.floor(framerate * PARAMS.duration));
+
+  // Clamp frameCounter to ensure it stays within bounds
+  frameCounter = Math.min(totalFrames - 1, frameCounter);
+
+  // Calculate and set timeline based on frameCounter
+  PARAMS.timeline = (frameCounter / totalFrames * PARAMS.duration) * PARAMS.duration;
+
+  // Render the current frame
+  renderCurrentFrame(p5Instance);
+}
+
+function prevFrame() {
+  if (animationRunning) {
+    toggleAnimation();
+  }
+
+  // Decrement frameCounter
+  frameCounter--;
+
+  // Calculate total frames
+  const totalFrames = Math.max(1, Math.floor(framerate * PARAMS.duration));
+
+  // Clamp frameCounter to ensure it stays within bounds
+  frameCounter = Math.max(0, frameCounter);
+
+  // Calculate and set timeline based on frameCounter
+  PARAMS.timeline = (frameCounter / totalFrames * PARAMS.duration) * PARAMS.duration;
+
+  // Render the current frame
+  renderCurrentFrame(p5Instance);
+}
+
 function restartAnimation() {
-  currentLine = new Array(PARAMS.columns).fill(0);
-  direction = new Array(PARAMS.columns).fill(1);
-  frameCounter = 0;
-  PARAMS.timeline = 0;
-  startTime = p5Instance.millis();
+  if (animationRunning) {
+    currentLine = new Array(PARAMS.columns).fill(0);
+    direction = new Array(PARAMS.columns).fill(1);
+    frameCounter = 0;
+    PARAMS.timeline = 0;
+    startTime = p5Instance.millis(); 
+  } else {
+    renderCurrentFrame(p5Instance)
+  }
+}
+function renderCurrentFrame(p5) {
+  // Pause the animation temporarily to ensure a clean render
+  animationRunning = false;
+  startTime = p5Instance.millis() - PARAMS.timeline * 1000; 
+
+  // Calculate the current frame based on PARAMS.timeline
+  const currentFrame = Math.floor(((PARAMS.timeline - startTime) / PARAMS.duration) * (framerate * PARAMS.duration));
+  frameCounter = currentFrame;
+
+  // Ensure the timeline reflects the current time in the animation
+  const currentTime = (frameCounter / (framerate * PARAMS.duration)) * PARAMS.duration;
+  PARAMS.timeline = currentTime;
+
+  // Redraw the frame
+  p5.background(0); // Clear the canvas
+  animate(p5);      // Call your animate function
+
+  // Resume the animation if it was running before
+  if (animationRunning) {
+    requestAnimationFrame(() => animate(p5));
+  }
 }
 function startCapture() {
   isRendering = true;
@@ -1031,6 +1315,9 @@ function fitCanvasToViewport() {
   canvas.style.transform = `scale(${scale})`;
   canvas.style.left = `${(innerWidth - PARAMS.width * scale) / 2}px`;
   canvas.style.top = `${(innerHeight - PARAMS.height * scale) / 2}px`;
+  if (!animationRunning) {
+    renderCurrentFrame(p5Instance);
+  }
 }
 </script>
 
@@ -1038,6 +1325,10 @@ function fitCanvasToViewport() {
 
 <P5 {sketch} />
 <div id="settings"></div>
+<div class="credits">
+  <p>Design and communication: <a href="https://www.automaticostudio.com/" target="_blank">Automatico Studio</a></p>
+  <p>Development: <a href="https://www.lucabunino.com/" target="_blank">Luca Bunino</a></p>
+</div>
 
 <style>
   :global(body) {
@@ -1062,10 +1353,39 @@ function fitCanvasToViewport() {
     max-width: 400px;
     width: calc(100vw - 18px);
     background-color: black;
-    overflow: scroll;
+    overflow-y: scroll;
     max-height: calc(100vh - 18px);
     max-height: calc(100svh - 18px);
     border-radius: 6px;
+  }
+  #settings::-webkit-scrollbar {
+    display: none;
+  }
+  .credits {
+    font-family: Roboto Mono, Source Code Pro, Menlo, Courier, monospace;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: .01em;
+    color: white;
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    padding: .5em;
+  }
+  .credits p {
+    margin: 0;
+  }
+  .credits a {
+    color: white;
+  }
+  .credits a:any-link {
+    color: white;
+  }
+  .credits a:any-link {
+    color: white;
+  }
+  .credits a:hover {
+    opacity: .5;
   }
   @media only screen and (max-width: 600px) {
     #settings {
