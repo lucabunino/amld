@@ -579,7 +579,6 @@ function animate(p5) {
     p5.translate(0, 0, -100);
 
     if (PARAMS.imageLinesRotation === 'vertical') {
-        // Horizontal gap based on lines, vertical gap based on accuracy
         let horizontalGap = Math.floor(imgWidth / lines);  // controls the number of vertical lines
         let verticalGap = Math.floor(imgHeight / accuracy);  // controls the height of each line
 
@@ -611,7 +610,6 @@ function animate(p5) {
             }
         }
     } else {
-        // Horizontal gap based on accuracy, vertical gap based on lines
         let horizontalGap = Math.floor(imgWidth / accuracy);  // controls the width of each horizontal line
         let verticalGap = Math.floor(imgHeight / lines);  // controls the number of horizontal lines
 
@@ -641,7 +639,7 @@ function animate(p5) {
 
                 p5.fill(255);
                 p5.noStroke();
-                p5.rect(x + xPos - rectHeight / 2, y + yPos - rectHeight / 2, rectWidth, rectHeight); // Draw horizontal rectangle
+                p5.rect(x + xPos - rectWidth / 2, y + yPos - rectHeight / 2, rectWidth, rectHeight); // Draw horizontal rectangle
             }
         }
     }
