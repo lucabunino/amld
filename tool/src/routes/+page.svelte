@@ -532,48 +532,54 @@ function animate(p5) {
   }
 
   if (PARAMS.image) {
-    if (animationRunning) {
-      toggleAnimation();
-    }
     p5.push();
-
     // Load and process the image
-    let img = p5.loadImage(uploadedImage, (img) => {
-      let scaleWidth = usableWidth / img.width;
-      let scaleHeight = usableHeight / img.height;
-      let scl = Math.max(scaleWidth, scaleHeight); // Scale to cover the canvas (object-fit: cover)
-      let newWidth = img.width * scl;
-      let newHeight = img.height * scl;
+    let img = p5.loadImage(uploadedImage, (loadedImg) => {
+        loadedImg.loadPixels();
+        if (!loadedImg.pixels || loadedImg.pixels.length === 0) {
+            console.error("Image pixels not loaded properly.");
+            return;
+        }
+        console.log(loadedImg.width,loadedImg.height,);
 
-      // Calculate offsets to center the image
-      let xOffset = (newWidth - usableWidth) / 2; // Left cropping offset
-      let yOffset = (newHeight - usableHeight) / 2; // Top cropping offset
+        // Process image
+        let scaleWidth = usableWidth / loadedImg.width;
+        let scaleHeight = usableHeight / loadedImg.height;
+        let scl = Math.max(scaleWidth, scaleHeight);
 
-      // Resize the image based on scale
-      img.resize(newWidth, newHeight);
+        let newWidth = Math.floor(loadedImg.width * scl);
+        let newHeight = Math.round(loadedImg.height * scl);
+        console.log(newWidth,newHeight,);
 
-      // Crop and center the image on the canvas
-      // p5.image(
-      //   img,
-      //   leftFrame, // Destination X on canvas
-      //   topFrame,  // Destination Y on canvas
-      //   usableWidth, // Destination width
-      //   usableHeight, // Destination height
-      //   xOffset, // Source X from the image
-      //   yOffset, // Source Y from the image
-      //   usableWidth, // Source width from the image
-      //   usableHeight // Source height from the image
-      // );
-
-      // Draw line art on top of the cropped image
-      drawLineArt(img, PARAMS.imageLines, PARAMS.imageAccuracy, leftFrame, topFrame, usableWidth, usableHeight, xOffset, yOffset);
+        // Resize and calculate offsets
+        loadedImg.resize(newWidth, newHeight);
+        let xOffset = (newWidth - usableWidth) / 2;
+        let yOffset = (newHeight - usableHeight) / 2;
+        
+        // Draw line art
+        drawLineArt(
+            loadedImg,
+            PARAMS.imageLines,
+            PARAMS.imageAccuracy,
+            leftFrame,
+            topFrame,
+            usableWidth,
+            usableHeight,
+            xOffset,
+            yOffset
+        );
     });
     p5.translate(0, 0, -p5.height);
     p5.pop();
   }
 
   function drawLineArt(img, lines, accuracy, xPos, yPos, imgWidth, imgHeight, xOffset, yOffset) {
-    img.loadPixels();
+    console.log('lineArt');
+    
+    if (!img.pixels || img.pixels.length === 0) {
+      console.error('Image pixels not loaded properly.');
+      return;
+    }
 
     p5.push();
     p5.translate(0, 0, -100);
@@ -589,7 +595,10 @@ function animate(p5) {
                 let minY = p5.constrain(y - (verticalGap >> 1) + yOffset, 0, img.height);
                 let maxY = p5.constrain(y + (verticalGap >> 1) + yOffset, 0, img.height);
                 let areaPixels = (maxY - minY) * (maxX - minX);
-
+                if (areaPixels <= 0) {
+                    console.warn('Invalid areaPixels:', { minX, maxX, minY, maxY, areaPixels });
+                    continue; // Skip the iteration
+                }
                 let light = 0;
 
                 for (let ay = minY; ay < maxY; ay++) {
@@ -603,9 +612,12 @@ function animate(p5) {
                 light /= areaPixels;
 
                 let rectWidth = p5.map(light, 0, 255, 0, horizontalGap);
+                // let rectWidth = p5.map(light, 0, 255, 0, horizontalGap);
 
                 p5.fill(255);
                 p5.noStroke();
+                
+                // console.log(`Light: ${light}, Rect Width: ${rectWidth}`);
                 p5.rect(x + xPos - rectWidth / 2, y + yPos, rectWidth, verticalGap);  // Draw vertical line as rectangle
             }
         }
@@ -620,6 +632,10 @@ function animate(p5) {
                 let minX = x - (horizontalGap >> 1) + xOffset;
                 let maxX = x + (horizontalGap >> 1) + xOffset;
                 let areaPixels = (maxX - minX) * (maxY - minY);
+                if (areaPixels <= 0) {
+                    console.warn('Invalid areaPixels:', { minX, maxX, minY, maxY, areaPixels });
+                    continue; // Skip the iteration
+                }
 
                 let light = 0;
 
@@ -639,7 +655,8 @@ function animate(p5) {
 
                 p5.fill(255);
                 p5.noStroke();
-                p5.rect(x + xPos - rectWidth / 2, y + yPos - rectHeight / 2, rectWidth, rectHeight); // Draw horizontal rectangle
+
+                p5.rect(x + xPos - rectWidth / 2, y + yPos + rectHeight / 2, rectWidth, rectHeight); // Draw horizontal rectangle
             }
         }
     }
@@ -948,7 +965,7 @@ onMount(() => {
       'Square custom long': 'squareCustomLong',
       'Fullscreen': 'fullscreen',
     }
-  }).on('change', () => {setTemplate(PARAMS.template, text, textSize); pane.refresh(); console.log(PARAMS.template);});
+  }).on('change', () => {setTemplate(PARAMS.template, text, textSize); pane.refresh();});
   text = tab.pages[0].addBinding(PARAMS, 'text').on('change', () => {if (!animationRunning) {renderCurrentFrame(p5Instance)}});;
   textSize = tab.pages[0].addBinding(PARAMS, 'textSize', {
     options: {
@@ -962,6 +979,10 @@ onMount(() => {
     view: 'separator',
   });
   tab.pages[0].addBinding(PARAMS, 'image',).on('change', () => {
+    if (animationRunning) {
+      toggleAnimation();
+    }
+    renderCurrentFrame(p5Instance)
     imageLinesRotation.hidden = !imageLinesRotation.hidden;
     imageLines.hidden = !imageLines.hidden;
     imageAccuracy.hidden = !imageAccuracy.hidden;
@@ -1052,9 +1073,6 @@ onMount(() => {
   restartButton = playerFolder.addButton({
     title: 'Restart'
   }).on('click', () => restartAnimation());
-  pane.addBlade({
-    view: 'separator',
-  });
   const exportFolder = settingsFolder.addFolder({ title: 'Export'});
   exportFolder.addBinding(PARAMS, 'format', {
     options: {
@@ -1081,6 +1099,10 @@ onMount(() => {
 function setTemplate(template, text, textSize) {
   text.hidden = true;
   textSize.hidden = true;
+  if (PARAMS.image) {
+    PARAMS.image = false;
+    alert('Image turned off to prevent heavy rendering loads. You can turn it back on, if you wish')
+  }
   if (template === 'horizontalCustomLong') {
       text.hidden = false;
       textSize.hidden = false;
@@ -1114,7 +1136,7 @@ function uploadImage() {
   // Create a file input element dynamically
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = 'image/*';
+  input.accept = '.jpg,.jpeg,.webp,.png';
 
   // Trigger the file dialog
   input.click();
@@ -1213,12 +1235,8 @@ function renderCurrentFrame(p5) {
   // Redraw the frame
   p5.background(0); // Clear the canvas
   animate(p5);      // Call your animate function
-
-  // Resume the animation if it was running before
-  if (animationRunning) {
-    requestAnimationFrame(() => animate(p5));
-  }
 }
+
 function startCapture() {
   isRendering = true;
   if (!capturing) {
